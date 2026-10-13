@@ -52,7 +52,7 @@ TLDR channel/thread split (fleet-bus #160)
 
 The teed copy previously did a single raw ``adapter.send`` — a long reply then
 got hacked into a 5-part wall by Discord's native >2000-char chunker. The guard's
-"channel = headline, thread = substance" rule (rtech-hermes #532) never ran on
+"channel = headline, thread = substance" rule (the agent runtime) never ran on
 the tee copy because that rule lives in the gateway's ``transform_llm_output``
 hook chain, which a subscriber-side ``adapter.send`` bypasses.
 

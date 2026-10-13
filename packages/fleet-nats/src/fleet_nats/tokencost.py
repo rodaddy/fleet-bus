@@ -1,9 +1,9 @@
 """The token-cost wire shape — the one shared ``kind="token_cost"`` contract (#27).
 
-After each agent turn, the Hermes post-turn hook (rtech-hermes #457) emits one
+After each agent turn, the Hermes post-turn hook in the agent runtime emits one
 token-cost event on its ``subjects.token_cost(env, agent)`` lane; the governor
 (#13) sums per-task spend and enforces a budget, and the dashboard (#14) renders
-it. Emitter (rtech-hermes) and consumers (fleet-orchestrator) live in different
+it. Emitter (the agent runtime) and consumers (fleet-orchestrator) live in different
 repos — exactly the drift risk that produced the dispatch-subject mismatch — so
 the shape lives here, in the transport layer both import, with one builder and
 one strict parser. Neither side hand-rolls the dict.
@@ -70,7 +70,7 @@ def token_cost_envelope(
     total_tokens: int,
     model: str,
 ) -> Envelope:
-    """Build the token-cost envelope the Hermes post-turn hook emits (#457).
+    """Build the token-cost envelope the Hermes post-turn hook emits.
 
     Publish on ``subjects.token_cost(env, sender)``. Caller supplies id/ts
     (mirrors :meth:`Envelope.new`) so events stay deterministic under test.

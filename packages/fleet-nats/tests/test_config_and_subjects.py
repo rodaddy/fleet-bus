@@ -143,7 +143,7 @@ def test_config_staging_guard_is_a_tripwire_not_isolation_dns_alias() -> None:
     # NOT a fail-closed isolation boundary. True isolation = distinct staging
     # credentials (HIGH-2 / docs). If this ever starts RAISING, the guard grew a
     # DNS resolution it must not have.
-    cfg = BusConfig(agent_id="drill", env="staging", url="nats://fleet-hub.internal:4222")
+    cfg = BusConfig(agent_id="drill", env="staging", url="nats://fleet-hub.example.internal:4222")
     assert cfg.env == "staging"
 
 

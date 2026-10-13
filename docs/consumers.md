@@ -231,7 +231,7 @@ contract takes caller-supplied ids so published output is reproducible; see how
 
 ### 6. Token-cost feed consumer (governor #13 / dashboard #14)
 
-The per-turn token-cost feed (#27) is emitted by rtech-hermes #457 on the
+The per-turn token-cost feed (#27) is emitted by the agent runtime's post-turn hook on the
 `token_cost` lane. A consumer subscribes the wildcard, parses each event with the
 shared strict parser, and sums per-task spend — the number the governor budgets
 against. `CostLedger` does the work — parse, **dedup on `turn_id`** (app-level

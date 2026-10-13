@@ -1,6 +1,6 @@
 """Seed/sync the k-board ``nats_subjects`` registry from the code catalog.
 
-The sync direction encodes the authority seam (fleet-board #15): while the
+The sync direction encodes the authority seam (the k-board registry endpoint): while the
 table is authoritative, this tool is how the CODE registry is exported INTO it
 (seed + reconcile after a ``subjects.py`` change lands). When authority flips
 to code-canonical, this same export keeps the table current as a mirror — the
@@ -11,7 +11,7 @@ Usage (from ``packages/fleet-nats``)::
     .venv/bin/python -m fleet_nats.registry_sync [--base-url https://kboard.example.internal]
 
 Exits non-zero with a clear message while the endpoint is not deployed —
-contract-first: the payload shape is the fleet-board #15 API.
+contract-first: the payload shape is the k-board registry endpoint API.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ _ENV_TOKEN = "FLEET_REGISTRY_TOKEN"
 def _seed_version(catalog_version: int) -> int:
     """The version to PUT — a valid stored version, never below ``1``.
 
-    The endpoint contract (fleet-board #15) is CLIENT-OWNED: the client SENDS the
+    The endpoint contract (the k-board registry endpoint) is CLIENT-OWNED: the client SENDS the
     version verbatim, the server stores it and ``409``s only on a stale write —
     it does NOT auto-bump. So the seed must carry a version the endpoint accepts,
     and its validator rejects ``version < 1`` (a stored catalog is always ``>= 1``;
@@ -89,14 +89,14 @@ def sync(base_url: str, *, timeout_s: float = 10.0) -> int:
     }
     url = f"{base_url.rstrip('/')}{_API_PATH}"
     safe_url = _safe_registry_url(url)
-    # The endpoint's PUT requires actor authentication (fleet-board #26): a
+    # The endpoint's PUT requires actor authentication (k-board write auth): a
     # bearer token plus a tenant-scoped registry-writer grant. The token is a
     # secret — read from the environment, sent only as a header, never logged.
     token = os.environ.get(_ENV_TOKEN, "")
     if not token:
         logger.error(
             "fleet_nats.registry_sync | {} not set — the registry PUT is authenticated "
-            "(fleet-board #26); export the registry-writer bearer token before seeding",
+            "(k-board write auth); export the registry-writer bearer token before seeding",
             _ENV_TOKEN,
         )
         return 7
@@ -121,9 +121,7 @@ def sync(base_url: str, *, timeout_s: float = 10.0) -> int:
         )
         return 8
     if resp.status_code == 404:
-        logger.error(
-            "fleet_nats.registry_sync | endpoint not deployed yet (fleet-board #15): {}", safe_url
-        )
+        logger.error("fleet_nats.registry_sync | registry endpoint not deployed yet: {}", safe_url)
         return 3
     # Fail loud on ANYTHING that is not a clean 200 with a body we can trust. A
     # 3xx redirect, a 204 No-Content, or a 2xx with a mismatched/empty body all

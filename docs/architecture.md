@@ -267,7 +267,7 @@ Step by step:
    un-spoofable **done sentinel** via the shared `done_envelope` builder on the
    *same* status subject. (The legacy `[[done]]`/`[[done:outcome]]` and
    `[[stance:…]]` text-trailer parsers were **removed** in fleet-bus
-   [#205](https://github.com/rodaddy/fleet-bus/issues/205); `completion.py` /
+   #205; `completion.py` /
    `stance.py` now hold only the value types. A reply that is not a typed turn is
    visible prose only.) On the orchestrator side, `parse_done` turns
    that `kind="done"` envelope into a `DONE` event — checked **first**, before
@@ -496,10 +496,10 @@ valid** (a turn can legitimately spend nothing).
 
 ### Emission point
 
-The emitter is **rtech-hermes #457** — the Hermes-side post-turn hook, which
+The emitter is **the agent runtime's post-turn hook** (Hermes-side), which
 measures tokens at the agent-turn level and publishes one `token_cost` event per
 turn against this exact schema. This issue (fleet-bus #27) owns only the SUBJECT
-+ SCHEMA on the bus side so both ends match; rtech-hermes #457 owns emitting it.
++ SCHEMA on the bus side so both ends match; the agent runtime's post-turn hook owns emitting it.
 
 ### DECISION — its own subject, NOT ridden on the #26 heartbeat
 
@@ -543,7 +543,7 @@ names and fails the build if any appear).
 Nagatha keeps score in real time as Skippy and Bilby work a topic, and on
 non-convergence she decides. The orchestrator sees **all** turns on the shared
 bus, so the cross-agent count is real *here* in a way a single agent gate cannot
-achieve — a lone Hermes reflex (rtech-hermes #442) sees only its own turns. All
+achieve — a lone Hermes reflex (the agent runtime's turn-signal hook) sees only its own turns. All
 of this is **deterministic case-statement logic**: no LLM, no heuristic, no
 clock, no randomness. The stance of a turn is never guessed from its prose — only
 read from what the agent *signed*.
@@ -558,7 +558,7 @@ read from what the agent *signed*.
 > but remains circlejerk-trip gated: `_observe_score` returns when `observe()`
 > emits no event and runs `decide()` only after a trip.
 
-### The turn-signal contract (the rtech-hermes #442 seam)
+### The turn-signal contract (the agent runtime's turn-signal hook seam)
 
 Every worker turn already rides the `agent_status` envelope. Since C7 the signal
 is carried as the envelope's **typed fleet-core `Stance`** (`typed_signal`), with
@@ -568,7 +568,7 @@ structured fields carry it either way:
 | Field | Type | Meaning |
 |---|---|---|
 | `stance` | `"agree"` \| `"dissent"` \| `"neutral"` | What the agent DECLARED about the peer's position — `dissent` is the break-the-circle pushback signal. |
-| `fact_pull` | bool | Whether the agent pulled a fact this turn (the other break-the-circle act; ties to fact-check rtech-hermes #441). |
+| `fact_pull` | bool | Whether the agent pulled a fact this turn (the other break-the-circle act; ties to the agent runtime's fact-check). |
 
 `parse_turn_signal(envelope)` (`fleet_orchestrator.score`) is strict — it prefers
 the typed `Stance` signal, then falls back to `payload.meta`:
@@ -581,10 +581,10 @@ the typed `Stance` signal, then falls back to `payload.meta`:
   and logged*, never inferred from the turn's prose. It is not agreement: it
   neither extends nor resets the agreement run.
 
-The emitter of these fields is **rtech-hermes #442** — the per-agent reflex hook
+The emitter of these fields is **the agent runtime's turn-signal hook** — the per-agent reflex hook
 that decides whether it checked / dissented and stamps `meta` before the turn
 goes on the bus. This issue (fleet-bus #17) owns only the parse + score + decide
-on the orchestrator side; #442 owns emitting the signal.
+on the orchestrator side; the agent runtime's turn-signal hook owns emitting the signal.
 
 ### Scorekeeping + the circlejerk threshold
 
@@ -666,14 +666,14 @@ when it unparks.
 
 ---
 
-## 10. Subject registry — k-board `nats_subjects`, authoritative for now (fleet-board #15)
+## 10. Subject registry — k-board `nats_subjects`, authoritative for now (the k-board registry endpoint)
 
 
 **The decision (2026-07-08).** While the fleet's non-Dash subjects are being
 locked down, the subject catalog (templates + role→lanes map) is registered in
 a k-board Postgres table, and **that table is authoritative**. It is fully
 separate from Dash's own subject set and database. The schema/API belong to
-the k-board service repo (fleet-board #15); this repo owns the client and the
+the k-board service repo (the k-board registry endpoint); this repo owns the client and the
 seed/sync tool.
 
 **How clients learn subjects.** `fleet_nats.registry.load_catalog()` — called
@@ -704,7 +704,7 @@ table (seed + reconcile after a `subjects.py` change). The version is
 and `409`s only on a stale write (it does **not** auto-bump). The code catalog's
 version is `0` (the "unset / fallback" sentinel the endpoint validator rejects as
 `< 1`), so the seed clamps up and sends version `1` for the first real stored
-catalog (#155). It exits non-zero with a clear message until fleet-board #15
+catalog (#155). It exits non-zero with a clear message until the k-board registry endpoint
 deploys the endpoint — contract-first.
 
 **Catalog-version enforcement at connect (#103).** Fail-open alone splits the
@@ -741,7 +741,7 @@ the orchestrator hub call instead of the bare `load_catalog()`):
 
 > **Cross-repo dependency (scoped out of this repo).** The sync/read endpoint
 > `PUT|GET https://kboard.example.internal/api/nats-subjects?tenant=pg` is served
-> by the **k-board service repo (fleet-board #15)**, NOT fleet-bus. Until
+> by the **k-board service repo (the k-board registry endpoint)**, NOT fleet-bus. Until
 > k-board deploys it, `registry_sync` exits 3 on 404 and `connect_catalog`
 > falls open (or refuses to start, if a floor is configured). fleet-bus owns
 > only the client contract + enforcement; deploying the endpoint is k-board's.

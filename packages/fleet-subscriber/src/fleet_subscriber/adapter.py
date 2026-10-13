@@ -96,7 +96,7 @@ _LANE_BUILDERS: dict[str, tuple[Callable[[str, str], str], ...]] = {
 
 # When a catalog was FETCHED from the registry (source="kboard"), the fetched
 # catalog — not the code builders — is authoritative for the concrete subjects a
-# lane subscribes to (fleet-board #15 / #103). Enforcement without consumption is
+# lane subscribes to (the k-board registry endpoint / #103). Enforcement without consumption is
 # theater: a client that fetches a catalog then subscribes via hard-coded builders
 # would split the fleet the moment the registry's templates diverge from code.
 #
@@ -230,7 +230,7 @@ def build_adapter_class(api: GatewayApi) -> type[Any]:
             self._role = SubscriberRole.from_env()
             self._bus: FleetBus | None = None
             # The subject catalog, fetched ONCE at connect (k-board registry,
-            # fleet-board #15) and cached — never a hot-path read.
+            # the k-board registry endpoint) and cached — never a hot-path read.
             self._catalog: SubjectCatalog | None = None
             self._heartbeat: HeartbeatEmitter | None = None
             self._heartbeat_task: asyncio.Task[None] | None = None
@@ -348,7 +348,7 @@ def build_adapter_class(api: GatewayApi) -> type[Any]:
                 logger.error("fleet_subscriber.connect | bad env config agent={}: {}", agent, exc)
                 await self._stop_kill_watch()
                 return False
-            # Subject registry (fleet-board #15 / #103): learn the catalog ONCE
+            # Subject registry (the k-board registry endpoint / #103): learn the catalog ONCE
             # at connect AND enforce the configured version floor BEFORE opening
             # the bus — a below-floor client speaks an obsolete taxonomy and
             # splits the fleet, so it must refuse to start rather than come up
@@ -884,7 +884,7 @@ def build_adapter_class(api: GatewayApi) -> type[Any]:
                 return api.SendResult(success=True, message_id=None)
 
             # The stance typed Turn field is the ORGANIC turn-signal
-            # (rtech-hermes #509). The typed fleet-core ``Stance`` bound as
+            # (the agent runtime). The typed fleet-core ``Stance`` bound as
             # ``typed_signal`` is the truth the orchestrator's parse_turn_signal
             # reads first (C7: typed frame fields are truth); ``payload.meta``
             # {"stance", "fact_pull"[, "reason"]} is kept only as a compatibility

@@ -92,7 +92,7 @@ unable to impersonate the envelope:
 
 3. **Completion / stance are typed-only.** The legacy `[[done]]` / `[[stance:…]]`
    reply-text trailer parsers were **removed** (fleet-bus
-   [#205](https://github.com/rodaddy/fleet-bus/issues/205)). A reply that is not a
+   #205). A reply that is not a
    typed turn carries no completion/stance — it is visible prose only. There is
    exactly one path to "done" or a signed stance: a typed `Done` / `Stance` on
    `typed_signal`. Body text has no second path.
@@ -134,6 +134,6 @@ unable to impersonate the envelope:
   changes to the envelope side of it. Adding a key **inside `payload`** is a body
   change and needs no version bump (C2 rule "add a new key inside `payload`").
   Adding or changing an **envelope** field is governed by C2.
-- **fleet-bus [#205](https://github.com/rodaddy/fleet-bus/issues/205):** removed
+- **fleet-bus #205:** removed
   the text-trailer completion/stance path, making "typed signal only" the sole
   path — the concrete enforcement of C6's completion/stance rule.

@@ -5,7 +5,7 @@ Instructions for coding agents (and humans) working in this repo.
 ## Coding standards (MANDATORY)
 
 **Read `docs/coding-standards.md` at the start of every session before touching
-code.** It is shared with rtech-agents. Everything below is a
+code.** It is shared with the sibling agent-runtime repo. Everything below is a
 fleet-bus delta on top of it, not a replacement.
 
 Key points that apply here (Python):
@@ -29,7 +29,7 @@ Repurposed from the retired `bilby-a2a` A2A server (2026-07-07).
 
 | Layer | Tool |
 |---|---|
-| Language | Python **>=3.13** (fleet standard, rtech-hermes #338) |
+| Language | Python **>=3.13** (fleet standard) |
 | Package manager | `uv` (never pip) |
 | Lint / format | `ruff` |
 | Types | `mypy --strict` |

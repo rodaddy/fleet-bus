@@ -26,10 +26,10 @@ release needs a correction, bump `project.version` and publish a new tag.
 
 ## Downstream install URL
 
-Private downstream clients pin the exact tag and package subdirectory:
+Downstream clients pin the exact tag and package subdirectory:
 
 ```sh
-uv add "fleet-core @ git+ssh://git@github.com/rodaddy/fleet-bus.git@fleet-core/v0.1.0#subdirectory=packages/fleet-core"
+uv add "fleet-core @ git+https://github.com/rodaddy/fleet-bus.git@fleet-core/v0.1.0#subdirectory=packages/fleet-core"
 ```
 
 Replace only the version suffix when cutting a newer `fleet-core` release. The
@@ -66,7 +66,7 @@ a package inside the fleet-bus monorepo, not the repository root package.
    git push origin fleet-core/v0.1.0
    ```
 
-6. Have at least one downstream client pin the GitHub SSH URL above before
+6. Have at least one downstream client pin the HTTPS install URL above before
    relying on the release for client cadence separation.
 
 ## Fleet-core hard rules

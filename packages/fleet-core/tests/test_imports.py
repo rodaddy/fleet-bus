@@ -29,7 +29,7 @@ def test_release_docs_pin_tag_and_subdirectory_install_to_project_version() -> N
     project_version = pyproject["project"]["version"]
     release_tag = f"fleet-core/v{project_version}"
     install_url = (
-        "fleet-core @ git+ssh://git@github.com/rodaddy/fleet-bus.git@"
+        "fleet-core @ git+https://github.com/rodaddy/fleet-bus.git@"
         f"{release_tag}#subdirectory=packages/fleet-core"
     )
 

@@ -18,8 +18,8 @@ from urllib.parse import urlsplit
 
 from loguru import logger
 
-# The live fleet NATS server (honcho / fleet-hub). Overridable via FLEET_NATS_URL so
-# a consumer on a different network segment or a local dev node can repoint.
+# The fleet NATS hub (a documentation address; set your own). Overridable via
+# FLEET_NATS_URL so a consumer on a different network segment or a local dev node can repoint.
 _DEFAULT_URL = "nats://192.0.2.74:4222"
 _DEFAULT_ENV = "dev"
 _IDENTITY_TOKEN_RE = re.compile(r"[a-z0-9][a-z0-9_-]*")

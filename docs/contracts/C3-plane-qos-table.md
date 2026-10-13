@@ -1,7 +1,7 @@
 # C3 — Plane / QoS Table (ratified contract)
 
 **Status:** RATIFIED (Rico, 2026-07-10). No amendments.
-**Ratification:** <https://github.com/rodaddy/fleet-bus/issues/112#issuecomment-4932337541>
+**Ratification:** the issue #112 decision comment
 — *"Yes — ratify table + checklist"*, seeded from T4's traffic matrix, with every
 NEW lane required to declare four fields at birth: **plane · delivery goal · ordering
 scope · retention**.
@@ -11,7 +11,7 @@ tip these receipts are verified against.
 **Companion contracts:** C5 (ordering scope: **per-`(channel, task)` only**). Plane
 classification narrative and the app↔token seam live in T4 / issue #119 →
 `docs/fleetbus-traffic-matrix.md` (PR
-[#130](https://github.com/rodaddy/fleet-bus/pull/130)). This file is the ratified
+#130). This file is the ratified
 **contract table + new-lane checklist**; it does not restate T4's prose and does not
 edit `docs/fleetbus-traffic-matrix.md`.
 
@@ -69,7 +69,7 @@ orchestrator is all app-plane.
 | 9 | `agent.dead_letter` | `dead_letter` | **app** | **needs redelivery** (a lost dead-letter loses the only record of an unprocessable envelope — actual today is at-most-once) | per-`(channel, task)` | none | subject axis is a **single per-env** subject (`{env}.agent.dead-letter`); order guaranteed only within each `(channel, task)` slice. `subjects.py:110-116`, `dead_letter.py:96-127` |
 | 10 | `kboard.event` | `kboard_event` | **app** | at-most-once ok (k-board Postgres is the source of truth; the bus event is a nudge, poller re-scans) | per-`(channel, task)` | none (record lives in k-board) | subject axis is **per-task** (`{env}.kboard.task.{event}.{task_id}`); order guaranteed only within each `(channel, task)` slice. `subjects.py:145-147`, `behaviors.py:665`, `intake_poller.py:400`, `loop.py:223` |
 | 11 | `hub.control` | `hub_control` (+`_wildcard`) | **app** | at-most-once ok (operator steer; if lost, operator re-issues) | per-`(channel, task)` | none | subject axis is **per-task** (`{env}.hub.control.{task_id}`); order guaranteed only within each `(channel, task)` slice. `subjects.py:150-167`, `control.py:270`, `loop.py:247` |
-| 12 | `factory.runner` | `factory_runner` (+`_wildcard`) | **app** | at-most-once ok (a dropped progress ping is cosmetic; the durable record is the runner result file on the collab NFS share plus the k-board event log) | per-`(channel, task)` | none (record lives in the runner result file + k-board) | subject axis is **per-job** (`{env}.factory.runner.{job_id}`); order guaranteed only within each `(channel, task)` slice. **Publish-only lane** — the `fleet-runner` principal has `subscribe { deny = [">"] }` (`deploy/nats/fleet-prod-nats-server.conf`), and no role subscribes it (`CODE_PUBLISH_ONLY_ROLES`). fleet-bus #222, consumer rodaddy/rodaddy-watcher#70. `subjects.py:180-207`, `registry.py:118-119` |
+| 12 | `factory.runner` | `factory_runner` (+`_wildcard`) | **app** | at-most-once ok (a dropped progress ping is cosmetic; the durable record is the runner result file on the collab NFS share plus the k-board event log) | per-`(channel, task)` | none (record lives in the runner result file + k-board) | subject axis is **per-job** (`{env}.factory.runner.{job_id}`); order guaranteed only within each `(channel, task)` slice. **Publish-only lane** — the `fleet-runner` principal has `subscribe { deny = [">"] }` (`deploy/nats/fleet-prod-nats-server.conf`), and no role subscribes it (`CODE_PUBLISH_ONLY_ROLES`). fleet-bus #222, consumed by a software-factory dashboard. `subjects.py:180-207`, `registry.py:118-119` |
 
 ### Lanes added after ratification (each declares the four fields at birth)
 
@@ -131,7 +131,7 @@ are the *contract* gate on top of that mechanical wiring.
 ## 3. Provenance and authority
 
 - **Ratified decision:** issue #112 comment
-  <https://github.com/rodaddy/fleet-bus/issues/112#issuecomment-4932337541> (Rico, 2026-07-10).
+  the issue #112 decision comment (Rico, 2026-07-10).
 - **Seed matrix:** `wave1-research/fleetbus-traffic-matrix.md` @ commit `060d71f` — the P1–P15
   publish and S1–S8 subscribe inventory this table collapses to lanes.
 - **Live-source verification:** every receipt above re-checked against this worktree at `060d71f`

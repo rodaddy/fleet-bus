@@ -19,9 +19,10 @@ chat surface and into code:
   as themselves. Nothing decides control flow by reading chat.
 - **NATS is the control plane.** Dispatch, relay, wake and sequencing ride typed
   envelopes on a fixed subject tree (`{env}.{domain}.{...}`).
-- **The k-board is the record.** A Postgres-backed task board (reached over its
-  REST API) holds task state with compare-and-set updates. NATS delivers; it is
-  not the record.
+- **The k-board is the record.** An external task board, reached over its REST
+  API, holds task state with compare-and-set updates. NATS delivers; it is not
+  the record. This repo ships only the client (`fleet_orchestrator.kboard`); the
+  board service itself is not included.
 - **The orchestrator is a state machine, not a model.** No LLM sits in the
   control path. Every transition is a case in code and is unit-tested.
 
@@ -73,15 +74,17 @@ a reachable NATS server and real agents; they skip themselves when the server
 is not reachable. The shell regressions in `tests/*.test.sh` exercise the deploy
 scripts against local fixtures.
 
-## What is production-proven and what is not
+## What is included and what is not
 
-- Proven: this code ran a three-agent fleet on one operator's private network
-  in 2026, with the orchestrator, subscribers and k-board in daily use.
-- Not proven: any deployment but that one. Hostnames, agent names and the
+- What this repo contains: the four Python packages above, their unit tests,
+  example NATS configs, and deploy scripts. It does not contain the k-board
+  service, any agent runtime, or any agent personas.
+- The author ran this code for a three-agent fleet on a private network in
+  2026. That deployment cannot be reproduced from this repo alone, and no
+  other deployment has been run. Hostnames, agent names and the
   Discord channel map are config you supply. The deploy scripts and
   `.github/workflows/deploy*.yml` assume a single hub host reached over SSH from
   a self-hosted runner; treat them as a worked example.
-- Not included: the k-board service itself, or any agent personas.
 
 ## Naming notes
 

@@ -1,15 +1,14 @@
 # C2 — Envelope Compatibility Policy
 
-**Contract:** C2 (issue [#111](https://github.com/rodaddy/fleet-bus/issues/111), epic
-[#109](https://github.com/rodaddy/fleet-bus/issues/109))
-**Status:** Ratified (Rico, 2026-07-10) —
-[decision comment](https://github.com/rodaddy/fleet-bus/issues/111#issuecomment-4932337486)
+**Contract:** C2 (issue #111, epic
+#109)
+**Status:** Ratified (Rico, 2026-07-10)
 **Scope:** `packages/fleet-nats/src/fleet_nats/envelope.py` — the `Envelope` wire contract
 every consumer shares.
 
 This is the contract that governs how the fleet-bus envelope evolves without breaking the
 producers and consumers already on the wire. It is the only C-series contract that
-materially changes `envelope.py` behavior. It blocks T5 ([#120](https://github.com/rodaddy/fleet-bus/issues/120)),
+materially changes `envelope.py` behavior. It blocks T5 (#120),
 whose motivating change is an additive `act`/`state` enum field on the envelope.
 
 ---

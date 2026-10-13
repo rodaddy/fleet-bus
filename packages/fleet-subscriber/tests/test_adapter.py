@@ -668,7 +668,7 @@ async def test_intermediate_correlated_reply_emits_nothing(
 
 
 async def test_typed_stance_rides_payload_meta(monkeypatch: pytest.MonkeyPatch) -> None:
-    # rtech-hermes #509: a typed stance rides {"stance", "fact_pull"} on
+    # the agent runtime: a typed stance rides {"stance", "fact_pull"} on
     # payload.meta — the EXACT shape the orchestrator's parse_turn_signal consumes.
     adapter, fake = _adapter(monkeypatch, agent="skippy")
     await adapter.connect()

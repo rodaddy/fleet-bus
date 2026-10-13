@@ -178,7 +178,7 @@ def test_sync_failure_log_sanitizes_url(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 class _FakeKBoard:
-    """A stateful stand-in for the fleet-board #15 endpoint (#155).
+    """A stateful stand-in for the k-board registry endpoint (#155).
 
     Models the ACTUAL server contract instead of hardcoding a 200: the PUT
     validator rejects ``version < 1`` with HTTP 400 (this is exactly the check
@@ -289,7 +289,7 @@ def test_version_zero_payload_would_be_rejected_by_the_validator() -> None:
 
 
 def test_sync_refuses_without_token_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The PUT is authenticated (fleet-board #26): no token, no request, exit 7."""
+    """The PUT is authenticated (k-board write auth): no token, no request, exit 7."""
 
     def fail_put(url: str, **_kwargs: object) -> httpx.Response:
         raise AssertionError("no request may be sent without a bearer token")

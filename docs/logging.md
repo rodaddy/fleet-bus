@@ -89,7 +89,7 @@ single coverage gate — a grep can prove *absence* of forbidden patterns but no
 *presence* of a log line at every future branch. As of Phase 6 every point below
 is covered; new code must keep it that way.
 
-Log at these five points (rtech-hermes coding standard — entry/exit/failure/
+Log at these five points (agent-runtime coding standard — entry/exit/failure/
 fallback/guard):
 
 1. **Every coordination transition** — the orchestrator logs *which state, which
