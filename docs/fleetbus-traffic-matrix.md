@@ -82,8 +82,8 @@ Consequences that reviewers must preserve:
 This lane is answered here rather than left to the checklist because it is the
 only lane whose **publisher is untrusted by design**.
 
-- **Concrete consumer:** the rodaddy-watcher software factory
-  (rodaddy/rodaddy-watcher#70), which renders live run progress. Receipt is
+- **Concrete consumer:** a software-factory dashboard,
+  which renders live run progress. Receipt is
   deterministic board/UI state and **must not create an LLM turn**.
 - **No in-repo subscriber today.** `factory_runner_wildcard` has no non-test
   call site, so nothing currently consumes this lane. The constraint below binds

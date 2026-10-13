@@ -27,7 +27,7 @@ not act on it. This is code-enforced, not a convention — see
 [C6 contract](../../docs/contracts/C6-envelope-vs-message-body.md) for the full
 statement and rationale. The legacy `[[done]]`/`[[stance]]` text-trailer path was
 removed in fleet-bus
-[#205](https://github.com/rodaddy/fleet-bus/issues/205), leaving typed signals as
+#205, leaving typed signals as
 the only path.
 
 For how the envelope wire shape *evolves* (additive-only within a major, version
@@ -36,16 +36,15 @@ gate, unknown-field round-trip), see the
 
 ## Version discipline
 
-Downstream clients should pin private GitHub refs to immutable release tags once
-fleet-core releases begin. Package version metadata lives in `pyproject.toml`;
-`fleet_core.__version__` reads the installed distribution metadata so editable,
+Downstream clients should pin immutable release tags. Package version metadata lives
+in `pyproject.toml`; `fleet_core.__version__` reads the installed distribution metadata so editable,
 workspace, and Git ref installs expose the same version string.
 
 Release tags use `fleet-core/v{project.version}`. For the current `0.1.0`
 package version, downstream clients install the monorepo subdirectory with:
 
 ```sh
-uv add "fleet-core @ git+ssh://git@github.com/rodaddy/fleet-bus.git@fleet-core/v0.1.0#subdirectory=packages/fleet-core"
+uv add "fleet-core @ git+https://github.com/rodaddy/fleet-bus.git@fleet-core/v0.1.0#subdirectory=packages/fleet-core"
 ```
 
 See [RELEASING.md](RELEASING.md) for the immutable tag checklist and manual

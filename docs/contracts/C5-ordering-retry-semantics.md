@@ -1,7 +1,7 @@
 # C5 — Ordering & Retry Semantics (honest contract)
 
-**Status:** ratified. **Issue:** [#114](https://github.com/rodaddy/fleet-bus/issues/114) (epic [#109](https://github.com/rodaddy/fleet-bus/issues/109)).
-**Ratified decision (Rico, 2026-07-10):** <https://github.com/rodaddy/fleet-bus/issues/114#issuecomment-4932337623>
+**Status:** ratified. **Issue:** #114 (epic #109).
+**Ratified decision (Rico, 2026-07-10):** the issue #114 decision comment
 
 > Honest ordering + retry semantics — per-`(channel, task)` ordering ONLY (no
 > global ordering promise); at-least-once + idempotent consumers on JetStream

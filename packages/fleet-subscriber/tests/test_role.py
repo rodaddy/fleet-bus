@@ -52,7 +52,7 @@ def test_from_env_rejects_unknown_role(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_role_lanes_match_the_registry_seed() -> None:
-    # The registry's role→lanes map (fleet-board #15 seed) and the running
+    # The registry's role→lanes map (the k-board registry endpoint seed) and the running
     # subscriber must never disagree — role.py derives from it by construction.
     from fleet_nats.registry import CODE_ROLE_LANES
 

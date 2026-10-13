@@ -396,8 +396,8 @@ no_banned_words() {
 echo "== Phase 0 (#28): env-matrix reconciliation =="
 check_if "docs/env-matrix-reconciliation.md" "P0 record mentions all four contract checks (doc-presence gate)" bash -c \
     'grep -q FLEET_NATS_NAME docs/env-matrix-reconciliation.md && grep -qi allow_bots docs/env-matrix-reconciliation.md && grep -q FLEET_ROLE docs/env-matrix-reconciliation.md && grep -qi collision docs/env-matrix-reconciliation.md'
-check_if "docs/env-matrix-reconciliation.md" "P0 record present + #464 cross-linked (doc-presence gate, not verification)" bash -c \
-    'grep -qE "(rtech-hermes.*#464|#464.*rtech-hermes)" docs/env-matrix-reconciliation.md && grep -qiE "sign.?off" docs/env-matrix-reconciliation.md'
+check_if "docs/env-matrix-reconciliation.md" "P0 record present + sign-off recorded (doc-presence gate, not verification)" bash -c \
+    'grep -qiE "sign.?off" docs/env-matrix-reconciliation.md'
 check_if "docs/env-matrix-reconciliation.md" "P0 no secret values in the record" bash -c \
     '! grep -rnE "(discord\.com/api/webhooks|xoxb-|Bearer [A-Za-z0-9])" docs/env-matrix-reconciliation.md'
 
@@ -452,8 +452,8 @@ check_pytest "packages/fleet-nats/.venv/bin/python" \
     "P4 token-cost wire round-trip + strict parse" "packages/fleet-nats" "token_cost"
 check_pytest "packages/fleet-orchestrator/.venv/bin/python" \
     "P4 consumer sums per-task cost from feed" "packages/fleet-orchestrator" "sum_task_cost or costfeed"
-check_if "packages/fleet-nats/src/fleet_nats/tokencost.py" "P4 contract documented both sides + #457 cross-link" bash -c \
-    'grep -q token_cost docs/architecture.md && grep -q token_cost docs/consumers.md && grep -qE "#457" docs/architecture.md'
+check_if "packages/fleet-nats/src/fleet_nats/tokencost.py" "P4 contract documented both sides + emitter cross-link" bash -c \
+    'grep -q token_cost docs/architecture.md && grep -q token_cost docs/consumers.md && grep -q "post-turn hook" docs/architecture.md'
 check_if "packages/fleet-nats/src/fleet_nats/tokencost.py" "P4 schema carries counts, never content" \
     no_banned_words packages/fleet-nats/src/fleet_nats/tokencost.py "\\b(prompt_text|completion_text|content)\\b"
 
@@ -471,8 +471,8 @@ check "P5 verifier rejects production env outside fenced service unit" rejects_s
 echo "== Phase 6 (#17): scorekeeper + decider =="
 check_pytest "packages/fleet-orchestrator/.venv/bin/python" \
     "P6 score/circlejerk/decider tests" "packages/fleet-orchestrator" "score or circlejerk or decider"
-check_if "packages/fleet-orchestrator/src/fleet_orchestrator/score.py" "P6 turn-signal contract documented + #442 cross-link" bash -c \
-    'grep -q fact_pull docs/architecture.md && grep -qE "#442" docs/architecture.md'
+check_if "packages/fleet-orchestrator/src/fleet_orchestrator/score.py" "P6 turn-signal contract documented + emitter cross-link" bash -c \
+    'grep -q fact_pull docs/architecture.md && grep -q "turn-signal hook" docs/architecture.md'
 check "P6 no LLM in the control path" bash -c \
     '! grep -rnE "^[[:space:]]*(import|from)[[:space:]]+(openai|anthropic|litellm)\\b" packages/fleet-orchestrator/src 2>/dev/null'
 

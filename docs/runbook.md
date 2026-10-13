@@ -29,8 +29,7 @@ state** (probe the running agent), never by trusting a config file.
 | Skippy  | skippy-host | worker  | `dispatch` / `relay` / `wake` / `inbox`         |
 | Nagatha | nagatha-host | manager | `inbox` (adapter); status/arbitrate via the orchestrator |
 
-All three are on Python 3.13 with `nats-py>=2.15` already (fleet standard,
-rtech-hermes #338) — **no venv work needed** to enable the subscriber.
+All three are on Python 3.13 with `nats-py>=2.15` already (fleet standard) — **no venv work needed** to enable the subscriber.
 
 ## Per-agent config surface (env-driven)
 
@@ -234,7 +233,7 @@ fleet-hub (fleet-hub) 2026-07-07.
 For each agent, in the maintainer-authorized deploy window:
 
 1. **Back up + ledger** the agent's current customizations before any change
-   (per rtech-hermes `docs/coding-standards.md`). No change without a backup and
+   (per `docs/coding-standards.md`). No change without a backup and
    a ledger entry.
 2. Set the agent's env: `FLEET_NATS_URL`, `FLEET_AGENT_ID`, `FLEET_ENV`,
    `FLEET_ROLE` (table above), and set `allow_bots` to `mentions` (or `all` for
@@ -585,7 +584,7 @@ hub acts on and logs (with who + why). No lever pull, no command.
 ## Catalog-version enforcement (floor + refuse-to-start) (#103)
 
 The subject catalog (templates + role→lanes map) is authoritative in the k-board
-`nats_subjects` table (fleet-board #15). Clients learn it once at connect and
+`nats_subjects` table (the k-board registry endpoint). Clients learn it once at connect and
 cache it; a registry outage falls **open** to the baked-in version-`0` code
 catalog. Fail-open alone is a fleet-split hazard: with the endpoint undeployed,
 every client silently runs the version-`0` catalog, a taxonomy write is a no-op,
@@ -639,7 +638,7 @@ opt-in, a fleet mid-rollout (some hosts floored, some not) never bricks — the
 un-floored hosts keep failing open. Never raise the floor above what the live
 endpoint serves.
 
-1. **Deploy the k-board endpoint** (fleet-board #15 — a different repo). Nothing
+1. **Deploy the k-board endpoint** (the k-board registry endpoint — a different repo). Nothing
    in fleet-bus deploys it; this repo owns only the client contract + the seed
    tool.
 2. **Seed the table** from the code catalog:
@@ -672,7 +671,7 @@ is the "safe to raise the floor" gate:
 |---|---|---|
 | `0` | Seeded — a clean `HTTP 200` whose echoed catalog round-trips the seed. | **Safe to raise the floor** (after the curl-verify in step 3). |
 | `2` | Registry **unreachable** (connection/transport error). | Do NOT raise the floor. Fix connectivity to k-board. |
-| `3` | Endpoint **not deployed yet** (404 — fleet-board #15). | Do NOT raise the floor. The endpoint half is not shipped. |
+| `3` | Endpoint **not deployed yet** (404 — the k-board registry endpoint). | Do NOT raise the floor. The endpoint half is not shipped. |
 | `4` | Not a confirmed store — any non-200 (a `4xx`/`5xx`, incl. a `400` from the endpoint validator, or a `3xx`/`204`). | Do NOT raise the floor. Read the logged status. |
 | `5` | `200` but the body did not validate as a catalog. | Do NOT raise the floor. The endpoint returned an unexpected body. |
 | `6` | `200` but the stored catalog drifted from what was sent. | Do NOT raise the floor. Reconcile `subjects.py` / the table. |
@@ -853,7 +852,7 @@ agent turn and survives agent restarts.
 1. Connect to NATS with the connection name **`fleet-orchestrator-hub`** (the
    `/connz` probe greps this — distinct from the manager subscriber's
    `fleet-nats-<agent>`). Set a `FLEET_NATS_NAME` only to override deliberately.
-2. Load the subject catalog once (fleet-board #15): reads
+2. Load the subject catalog once (the k-board registry endpoint): reads
    `FLEET_SUBJECT_REGISTRY_URL` and fetches the k-board `nats_subjects` table,
    **failing open loudly to the baked-in code defaults** when the registry is
    unreachable. The registry endpoint is not deployed yet, so the code-defaults
@@ -973,12 +972,12 @@ cannot prove the old release, the receipt is removed and the script emits
 
 One-time migration before the first workflow run is maintainer/root work, not a
 workflow step. The preconditions below must run **before** any release-path,
-unit, or sudoers mutation. The remote deploy operator is `rico`; the hub service
+unit, or sudoers mutation. The remote deploy operator is the account in `DEPLOY_USER`; the hub service
 continues to run under the service account declared by its unit:
 
 ```sh
 set -euo pipefail
-deploy_user=rico
+deploy_user="${DEPLOY_USER:?set DEPLOY_USER to the remote deploy account}"
 home=/opt/fleet-bus
 legacy_exec="$home/.venv/bin/fleet-orchestrator"
 

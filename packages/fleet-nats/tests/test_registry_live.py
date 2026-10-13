@@ -1,4 +1,4 @@
-"""Live registry drift gate (fleet-board #15) — pass-or-skip off-network.
+"""Live registry drift gate (the k-board registry endpoint) — pass-or-skip off-network.
 
 Skips while the k-board endpoint is unreachable OR not yet deployed (404);
 once it serves the contract, any drift between the table (authoritative for

@@ -1,6 +1,6 @@
 """The subject registry — k-board's ``nats_subjects`` table, authoritative for now.
 
-The fleet decision (2026-07-08, fleet-board #15): while subjects are being
+The fleet decision (2026-07-08, the k-board registry endpoint): while subjects are being
 locked down, the catalog of subject TEMPLATES and the role→lanes map are
 registered in k-board Postgres, and that table is **authoritative**. Clients
 learn the catalog ONCE at connect (never on the hot path) and cache it; any
@@ -287,7 +287,7 @@ async def fetch_catalog(
     timeout_s: float = _DEFAULT_TIMEOUT_S,
     client: httpx.AsyncClient | None = None,
 ) -> SubjectCatalog:
-    """Fetch the registry catalog from k-board (fleet-board #15 contract).
+    """Fetch the registry catalog from k-board (the k-board registry endpoint contract).
 
     Args:
         base_url: The k-board base URL (no trailing path).

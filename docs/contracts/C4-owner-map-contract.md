@@ -1,22 +1,22 @@
 # C4 — Owner-map contract (contract-net award shape)
 
-**Status:** RATIFIED (paper contract). **Issue:** [#113](https://github.com/rodaddy/fleet-bus/issues/113).
-**Epic:** Contracts (#109). **Implemented by:** [rodaddy/rtech-hermes#545](https://github.com/rodaddy/rtech-hermes/issues/545) (kernel + hub narration).
+**Status:** RATIFIED (paper contract). **Issue:** #113.
+**Epic:** Contracts (#109). **Implemented by:** the agent runtime (kernel + hub narration).
 
 > **Ratified decision (Rico, 2026-07-10):** the owner-map is a **contract-net award shape** —
 > the manager posts the owner-map FIRST; non-owners stay silent in-channel until they return a
 > lane result; silence is measurable — implemented identically by KERNEL text and hub narration.
 > Verbatim: *"Yes — contract-net shape (Recommended)"*, no amendments.
 > Recorded at
-> <https://github.com/rodaddy/fleet-bus/issues/113#issuecomment-4932337584>.
+> the issue #113 decision comment.
 
 This document defines the **machine-readable shape** only. It does not implement kernel prompt
-text or hub narration — rtech-hermes#545 owns implementation and MUST derive both from this schema.
+text or hub narration — the agent runtime owns implementation and MUST derive both from this schema.
 
 ## Motivating failure
 
 On a fan-out order, all three agents re-stated the same rule instead of one owning the lane and
-the others staying silent — channel noise with no owner (rtech-hermes#545 receipts: three
+the others staying silent — channel noise with no owner (agent-runtime receipts: three
 identical rule re-statements on a single order, 11 identical Acks in 90s, 20 tool-spew posts).
 The owner-map turns "who does what" from an emergent race into a manager-declared award.
 
@@ -122,7 +122,7 @@ The owner-map exists in two places, with a clear source of truth:
    `task.owner_map`, and MUST append the superseded generation to **`task.owner_map_history`** (an
    append-only list of prior award objects, oldest→newest). Audits, the silence measurement, and
    replay MUST read `task.owner_map` (current) and `task.owner_map_history` (prior generations); no
-   other field or store is authoritative. (rtech-hermes#545 owns the DB migration that adds the
+   other field or store is authoritative. (the agent runtime owns the DB migration that adds the
    columns; this contract fixes the field names so two implementers cannot diverge on where they
    live.)
 
@@ -142,7 +142,7 @@ and the channel post disagree, the **k-board task wins**.
 > to name *where it lives* but did not pin the exact storage. Placing the authoritative copy on
 > the **k-board task** (not NATS, not Discord) is the only choice consistent with the repo's
 > stated handoff-source-of-truth invariant. The channel post and the NATS envelope are
-> explicitly demoted to projection/transport. rtech-hermes#545 implements the persistence; this
+> explicitly demoted to projection/transport. The agent runtime implements the persistence; this
 > contract fixes *which* store is authoritative.
 
 ---
@@ -156,12 +156,12 @@ definition an agent only returns a result for a lane it owns — so a non-owner 
 in-channel post for the task.
 
 **Silence applies to the channel, not to work.** Non-owners may still do thread-only conduct
-(acks, tool-echo, 💾/⏳ status) per rtech-hermes#545's thread-routing; those do not count against
+(acks, tool-echo, 💾/⏳ status) per the agent runtime's thread-routing; those do not count against
 silence because they are not in-channel. Silence is specifically about keeping the **channel**
 carrying the owner-map plus substance, not ack/tool/ping spam.
 
 > **Ratified human-address exception (Rico, 2026-07-10,
-> <https://github.com/rodaddy/fleet-bus/issues/113#issuecomment-4932935474>).** A non-owner's in-channel post
+> the issue #113 decision comment).** A non-owner's in-channel post
 > that is a **direct reply to a human address/@-mention** is **outside** the non-owner silence rule
 > during the award window. When a human addresses an agent directly — by @-mentioning that agent, or
 > in a message the agent's post replies to — that agent MAY answer in-channel without violating
@@ -280,12 +280,12 @@ means in machine terms: **one schema, two projections, zero independent restatem
 ## References
 
 - Ratified decision comment:
-  <https://github.com/rodaddy/fleet-bus/issues/113#issuecomment-4932337584>
+  the issue #113 decision comment
 - Ratified human-address exception (Rico, 2026-07-10): latest comment on
-  <https://github.com/rodaddy/fleet-bus/issues/113#issuecomment-4932935474>. **Origin:** the KERNEL
-  (rodaddy/rtech-hermes#565) **references** this exception and MUST cite C4 — it never restates it.
-  C4 is the single source; #565 derives.
-- Implementing issue (kernel + hub narration): rodaddy/rtech-hermes#545
+  the issue #113 decision comment. **Origin:** the KERNEL
+  (in the agent runtime) **references** this exception and MUST cite C4 — it never restates it.
+  C4 is the single source; the kernel derives.
+- Implementation (kernel + hub narration): the agent runtime
 - Contract issue: rodaddy/fleet-bus#113 · Epic: #109
 - Related contracts: T5 (act/state enum, future), K4 (visible-ack handoffs)
 - Repo invariants: `CLAUDE.md` — *k-board = handoff source of truth; NATS delivers, is not the

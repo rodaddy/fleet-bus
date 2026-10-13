@@ -2,13 +2,13 @@
 
 The orchestrator sees ALL turns on the shared bus, so it — and only it — can
 count the back-and-forth between Skippy and Bilby deterministically. A single
-agent gate (rtech-hermes #442) sees only its own turns; the cross-agent count is
+agent gate (the agent runtime's turn-signal hook) sees only its own turns; the cross-agent count is
 real *here*. This module keeps that score and, on non-convergence, decides.
 
 Three parts, all pure case-statement logic — **no LLM, no heuristic, no clock,
 no randomness anywhere**:
 
-1. **Turn-signal contract** (the rtech-hermes #442 seam). Agents ride two
+1. **Turn-signal contract** (the agent runtime's turn-signal hook seam). Agents ride two
    structured fields on the EXISTING ``agent_status`` envelope's ``payload.meta``:
    ``stance`` (``"agree"`` / ``"dissent"`` / ``"neutral"``) and ``fact_pull``
    (bool — did the agent pull a fact / break the circle). :func:`parse_turn_signal`
@@ -86,7 +86,7 @@ def circlejerk_n_from_env() -> int:
     return _int_env(_ENV_CIRCLEJERK_N, _DEFAULT_CIRCLEJERK_N)
 
 
-# ---- Turn-signal contract (the rtech-hermes #442 seam) ---------------------
+# ---- Turn-signal contract (the agent runtime's turn-signal hook seam) ---------------------
 
 
 Stance = StancePosition
@@ -95,7 +95,7 @@ Stance = StancePosition
 
 @dataclass(frozen=True)
 class TurnSignal:
-    """A parsed, signed turn — the structured #442 reflex on an ``agent_status``.
+    """A parsed, signed turn — the structured turn-signal reflex on an ``agent_status``.
 
     Attributes:
         agent_id: The signing agent (the envelope ``sender``).
@@ -139,7 +139,7 @@ def _require_fact_pull(value: Any) -> bool:
 
 
 def parse_turn_signal(envelope: Envelope) -> TurnSignal | None:
-    """Parse the #442 turn signal off an ``agent_status`` envelope.
+    """Parse the turn signal off an ``agent_status`` envelope.
 
     The signal rides ``payload.meta`` as ``{"stance": ..., "fact_pull": ...}``.
 
@@ -283,7 +283,7 @@ class Scorekeeper:
     """Deterministic cross-agent scorekeeping over the shared turn stream.
 
     Keeps a :class:`Score` per topic (``task_id``). :meth:`observe` parses the
-    #442 signal off each ``agent_status`` envelope and applies a pure
+    turn signal off each ``agent_status`` envelope and applies a pure
     case-statement update; a malformed signal raises out of :func:`parse_turn_signal`
     and is logged + skipped at THIS boundary (the observe call) so one bad
     envelope never corrupts the tally or crashes the loop.

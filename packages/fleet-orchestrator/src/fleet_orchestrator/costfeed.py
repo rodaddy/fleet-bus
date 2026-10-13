@@ -1,7 +1,7 @@
 """Token-cost consumer — the per-task spend the governor budgets against (#27).
 
 Consumes the shared :mod:`fleet_nats.tokencost` wire shape from the
-``token_cost`` wildcard lane (emitted per turn by rtech-hermes #457) and answers
+``token_cost`` wildcard lane (emitted per turn by the agent runtime's post-turn hook) and answers
 the one question Phase 5's governor (#13) asks: how many tokens has this task
 spent so far. Pure and deterministic — the ledger reads no clock, keys nothing
 by wall time, and never carries what a turn read or wrote, only its size.

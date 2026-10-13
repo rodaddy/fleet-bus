@@ -2,7 +2,7 @@
 
 **Status:** Ratified & codified (remediated). This document codifies the C1
 decision Rico ratified on 2026-07-10 (issue #110), recorded at
-<https://github.com/rodaddy/fleet-bus/issues/110#issuecomment-4932337433>:
+the issue #110 decision comment:
 
 > publish the token-cost baseline — N-subscribers × M-messages × context-growth
 > for one realistic day, derived from the existing `token_cost` lane + Langfuse
@@ -10,7 +10,7 @@ decision Rico ratified on 2026-07-10 (issue #110), recorded at
 > topic-split T1) must cite.
 
 It was **reopened by the controller** at
-<https://github.com/rodaddy/fleet-bus/issues/110#issuecomment-4932596217>
+the issue #110 decision comment
 after the merged v1 was found to present a model output as an observed baseline.
 This revision executes **option (b)** from that comment: rename the artifact as a
 **modeled coordination-span index**, label every constant MEASURED or
@@ -153,7 +153,7 @@ The `token_cost` wire shape (`packages/fleet-nats/src/fleet_nats/tokencost.py`)
 carries real per-turn `prompt_tokens` / `completion_tokens`, but on the consumer
 side it flows only into the orchestrator's in-process `CostLedger` — **nothing
 persists those counts to disk or to Langfuse**, and the emitter is the
-rtech-hermes post-turn hook (#457), not a durable sink. The Langfuse
+the agent runtime post-turn hook, not a durable sink. The Langfuse
 `TraceRecord` is a closed dataclass with **no token fields**; all 93 observations
 return **zero** usage. The agent-host logs carry no per-turn usage either (see
 Sources #3). So for a past day the *structure* is measurable but the per-message
@@ -470,9 +470,7 @@ delta is a real per-turn/fan-out change. Until staging exists, use method A.
 
 ---
 
-*Codifies the ratified C1 decision (issue #110, ratification comment
-[4932337433](https://github.com/rodaddy/fleet-bus/issues/110#issuecomment-4932337433)),
-remediated per the reopen
-([4932596217](https://github.com/rodaddy/fleet-bus/issues/110#issuecomment-4932596217)).
+*Codifies the ratified C1 decision (issue #110),
+remediated per the controller's reopen.
 A modeled coordination-span index — not observed spend. Feeds workload-controlled
 acceptance numbers for u1/#96, u5/#100, and topic-split T1.*

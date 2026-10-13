@@ -467,11 +467,11 @@
     </details>
     <details class="qa">
       <summary>k-board task-id for the Phase 9 proving run and the exact fleet-hub agent host table.</summary>
-      <p class="qa-answer">The e2e gate curls a concrete <code>&lt;proving-task-id&gt;</code> and the probe targets Bilby bilby-host / Skippy skippy-host / Nagatha nagatha-host (per rtech-hermes CLAUDE.md). These must be confirmed live before Phase 7/9 — host tables drift. The plan leaves them as named placeholders to fill at execution, not assumptions to bake in.</p>
+      <p class="qa-answer">The e2e gate curls a concrete <code>&lt;proving-task-id&gt;</code> and the probe targets Bilby bilby-host / Skippy skippy-host / Nagatha nagatha-host (per the agent runtime's host table). These must be confirmed live before Phase 7/9 — host tables drift. The plan leaves them as named placeholders to fill at execution, not assumptions to bake in.</p>
     </details>
     <details class="qa">
       <summary>Do the trio agents already have <code>nats-py&gt;=2.15</code> on Python 3.13?</summary>
-      <p class="qa-answer">Issue #8 asserts yes (fleet standard, rtech-hermes #338) — "no venv work needed." Assumption carried; Phase 7 verifies via the effective-state probe rather than trusting the claim, since a missing dep would surface as a subscriber that never connects.</p>
+      <p class="qa-answer">Issue #8 asserts yes (fleet standard) — "no venv work needed." Assumption carried; Phase 7 verifies via the effective-state probe rather than trusting the claim, since a missing dep would surface as a subscriber that never connects.</p>
     </details>
   </section>
 
@@ -595,7 +595,7 @@ env = Envelope.new(msg_id=uid, ts=iso_now, sender=<span class="tok-s">"nagatha"<
     </details>
     <details class="amend">
       <summary>2026-07-07T22:55:00-08:00 — Trio hosts provisioned; enable assigned to the maintainer window</summary>
-      <p>PR #31 merged (self-provisioning installer + dummy + dispatch-subject fix + monitor-port fix; full gauntlet incl. Fable cross-review which re-proved the dispatch fix live — one per-form delivery, no double-turn). <strong>All three trio hosts are now provisioned:</strong> uv installed where missing (Skippy skippy-host, Nagatha nagatha-host), and <code>install-agent.sh</code> ran clean on Bilby (192.0.2.71), Skippy (192.0.2.111), Nagatha (192.0.2.77) — fleet-nats + fleet-subscriber import-verified in <code>/opt/fleet-bus/.venv</code> on each. <strong>The remaining enable</strong> (gateway plugin registration + <code>FLEET_*</code> env + <code>allow_bots</code> + restart) is <strong>explicitly assigned to the maintainer's authorized window</strong> (maintainer's decision 2026-07-07, batched with the pending rtech-hermes changes): the sanctioned front door lives in the rtech-hermes customizations repo (currently carrying unrelated in-flight work), and the restart interrupts live agents. Everything is staged so the window is config+restart only; the probe (now on the correct monitor port) flips Phase 7 the moment all three connect. Phase 9's real-agent Discord half follows the same window.</p>
+      <p>PR #31 merged (self-provisioning installer + dummy + dispatch-subject fix + monitor-port fix; full gauntlet incl. Fable cross-review which re-proved the dispatch fix live — one per-form delivery, no double-turn). <strong>All three trio hosts are now provisioned:</strong> uv installed where missing (Skippy skippy-host, Nagatha nagatha-host), and <code>install-agent.sh</code> ran clean on Bilby (192.0.2.71), Skippy (192.0.2.111), Nagatha (192.0.2.77) — fleet-nats + fleet-subscriber import-verified in <code>/opt/fleet-bus/.venv</code> on each. <strong>The remaining enable</strong> (gateway plugin registration + <code>FLEET_*</code> env + <code>allow_bots</code> + restart) is <strong>explicitly assigned to the maintainer's authorized window</strong> (maintainer's decision 2026-07-07, batched with the pending the agent runtime changes): the sanctioned front door lives in the agent runtime customizations repo (currently carrying unrelated in-flight work), and the restart interrupts live agents. Everything is staged so the window is config+restart only; the probe (now on the correct monitor port) flips Phase 7 the moment all three connect. Phase 9's real-agent Discord half follows the same window.</p>
     </details>
     <details class="amend">
       <summary>2026-07-08T01:13:38-04:00 — Verification pass; fixed live-test subject isolation</summary>
@@ -610,8 +610,8 @@ env = Envelope.new(msg_id=uid, ts=iso_now, sender=<span class="tok-s">"nagatha"<
       round-trips proven against the fleet NATS server (fleet-hub). The plan is published at
       <code>collab/sites/fleet-bus/plans/</code>.</p>
       <p><strong>Turn-key enable</strong> remains the maintainer's authorized window (trio enable,
-      rtech-hermes #464): gateway plugin registration + <code>FLEET_*</code> env per the config matrix
-      (rtech-hermes #467) + restart. Everything repo-side is staged; the Phase 7 probe flips the moment
+      the agent runtime): gateway plugin registration + <code>FLEET_*</code> env per the config matrix
+      (the agent runtime) + restart. Everything repo-side is staged; the Phase 7 probe flips the moment
       the trio connects. Nothing in this repo blocks it.</p>
       <p><strong>Continuation.</strong> Reliability + governance hardening — reconnect semantics,
       at-most-once transport + idempotent-consumer dedup + dead-letter, offline escalation ladder, token-cost feed, budget governor +

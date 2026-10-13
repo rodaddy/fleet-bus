@@ -66,22 +66,27 @@ SECRET_RE='^[A-Za-z][A-Za-z0-9+/=]{31,127}$'
 # name is the vault ref; login.username is the NATS username the server
 # authenticates (fleet-prod-nats-server.conf `user:` entries) so any consumer
 # of the login record can authenticate as-is. These are REFS, not secrets.
+# Item names are VAULT_ITEM_PREFIX + principal; set FLEET_NATS_VAULT_ITEM_PREFIX
+# to match your own vault naming.
+VAULT_ITEM_PREFIX="${FLEET_NATS_VAULT_ITEM_PREFIX:-fleet-nats-}"
 PRINCIPALS=(
-    "FLEET_NATS_PW_NAGATHA=fleet-bus-nats-nagatha=nagatha"
-    "FLEET_NATS_PW_SKIPPY=fleet-bus-nats-skippy=skippy"
-    "FLEET_NATS_PW_BILBY=fleet-bus-nats-bilby=bilby"
-    "FLEET_NATS_PW_HUB_CONTROL=fleet-bus-nats-hub-control=fleet-hub-control"
-    "FLEET_NATS_PW_OPEN_BRAIN=fleet-bus-nats-open-brain=open-brain"
-    "FLEET_NATS_PW_KBOARD=fleet-bus-nats-kboard=fleet-kboard"
-    "FLEET_NATS_PW_RUNNER=fleet-bus-nats-runner=fleet-runner"
-    "FLEET_NATS_PW_LOCAL_DEV=fleet-bus-nats-local-dev=local-dev"
-    "FLEET_NATS_PW_SYS_OPERATOR=fleet-bus-nats-sys-operator=fleet-sys-operator"
+    "FLEET_NATS_PW_NAGATHA=${VAULT_ITEM_PREFIX}nagatha=nagatha"
+    "FLEET_NATS_PW_SKIPPY=${VAULT_ITEM_PREFIX}skippy=skippy"
+    "FLEET_NATS_PW_BILBY=${VAULT_ITEM_PREFIX}bilby=bilby"
+    "FLEET_NATS_PW_HUB_CONTROL=${VAULT_ITEM_PREFIX}hub-control=fleet-hub-control"
+    "FLEET_NATS_PW_OPEN_BRAIN=${VAULT_ITEM_PREFIX}open-brain=open-brain"
+    "FLEET_NATS_PW_KBOARD=${VAULT_ITEM_PREFIX}kboard=fleet-kboard"
+    "FLEET_NATS_PW_RUNNER=${VAULT_ITEM_PREFIX}runner=fleet-runner"
+    "FLEET_NATS_PW_LOCAL_DEV=${VAULT_ITEM_PREFIX}local-dev=local-dev"
+    "FLEET_NATS_PW_SYS_OPERATOR=${VAULT_ITEM_PREFIX}sys-operator=fleet-sys-operator"
 )
 
 die() {
     printf 'provision-fleet-auth: ERROR: %s\n' "$1" >&2
     exit 1
 }
+
+[[ "$VAULT_ITEM_PREFIX" != *=* ]] || die "FLEET_NATS_VAULT_ITEM_PREFIX must not contain '='"
 
 require_bw() {
     command -v bw >/dev/null 2>&1 || die "bw CLI not found (Vaultwarden access required)"
@@ -143,7 +148,7 @@ cmd_mint() {
             secret="$(openssl rand -base64 32)" || die "openssl rand failed"
             [[ "$secret" =~ $SECRET_RE ]] && break
         done
-        printf '{"type":1,"name":"%s","notes":"fleet-bus #104 NATS credential; rotation unit = this principal only","login":{"username":"%s","password":"%s"}}' \
+        printf '{"type":1,"name":"%s","notes":"fleet-bus NATS credential; rotation unit = this principal only","login":{"username":"%s","password":"%s"}}' \
             "$item" "$nats_user" "$secret" | bw encode | bw create item >/dev/null \
             || die "failed to create vault item $item"
         secret=""

@@ -59,7 +59,7 @@ def _turn(
     msg_id: str | None = None,
     typed_signal: object | None = None,
 ) -> Envelope:
-    """Build an ``agent_status`` envelope, optionally carrying a #442 signal.
+    """Build an ``agent_status`` envelope, optionally carrying a turn signal.
 
     ``unsigned=True`` omits ``meta`` entirely (an unsigned turn). Otherwise the
     stance/fact_pull ride ``payload.meta``; ``meta=`` overrides for malformed

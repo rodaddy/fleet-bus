@@ -75,13 +75,13 @@ elif [ "$1" = get ] && [ "$2" = password ]; then
   printf 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\\n'
 elif [ "$1" = get ] && [ "$2" = username ]; then
   case "$3" in
-    fleet-bus-nats-hub-control) printf 'fleet-hub-control\\n' ;;
-    fleet-bus-nats-open-brain) printf 'open-brain\\n' ;;
-    fleet-bus-nats-kboard) printf 'fleet-kboard\\n' ;;
-    fleet-bus-nats-runner) printf 'fleet-runner\\n' ;;
-    fleet-bus-nats-local-dev) printf 'local-dev\\n' ;;
-    fleet-bus-nats-sys-operator) printf 'fleet-sys-operator\\n' ;;
-    fleet-bus-nats-*) printf '%s\\n' "${3#fleet-bus-nats-}" ;;
+    fleet-nats-hub-control) printf 'fleet-hub-control\\n' ;;
+    fleet-nats-open-brain) printf 'open-brain\\n' ;;
+    fleet-nats-kboard) printf 'fleet-kboard\\n' ;;
+    fleet-nats-runner) printf 'fleet-runner\\n' ;;
+    fleet-nats-local-dev) printf 'local-dev\\n' ;;
+    fleet-nats-sys-operator) printf 'fleet-sys-operator\\n' ;;
+    fleet-nats-*) printf '%s\\n' "${3#fleet-nats-}" ;;
     *) exit 1 ;;
   esac
 else
@@ -134,7 +134,7 @@ def test_direct_install_rejects_drifted_password_before_install(tmp_path: Path) 
     _write_env(env_file, password_drift="SKIPPY")
     result = _run(tmp_path, "install", env_file)
     assert result.returncode != 0
-    assert "vault credential mismatch for fleet-bus-nats-skippy" in result.stderr
+    assert "vault credential mismatch for fleet-nats-skippy" in result.stderr
     assert "B" * 32 not in result.stderr
     assert not (tmp_path / "installed.conf").exists()
 

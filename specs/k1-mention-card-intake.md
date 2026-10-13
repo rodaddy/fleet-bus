@@ -2,8 +2,6 @@
 
 Status: Phase A design only
 
-Issue: [fleet-bus #128](https://github.com/rodaddy/fleet-bus/issues/128)
-
 Build gate: **BLOCKED until every C-contract issue #110, #111, #112, #113, and #114 is closed**
 
 ## Scope lock

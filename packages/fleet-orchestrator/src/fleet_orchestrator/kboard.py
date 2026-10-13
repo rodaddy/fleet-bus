@@ -76,7 +76,7 @@ def event_for_state(state: State) -> str:
 _DEFAULT_BASE_URL = "https://kboard.example.internal"
 _TENANT = "pg"
 
-# Write auth (fleet-board #26, fleet-bus #206): every write endpoint requires an
+# Write auth (k-board write auth, fleet-bus #206): every write endpoint requires an
 # actor bearer. The token is a secret — read from the environment, sent only as
 # a header, never logged. The actor is the identity the bearer authenticates
 # (the hub principal); it is needed because the API's ownership rule requires an
@@ -306,7 +306,7 @@ class KboardClient:
                 )
                 return current
             payload = {"status": status, "expected_sync_version": current.sync_version}
-            # Ownership rule (fleet-board #26): an unassigned card must be CLAIMED
+            # Ownership rule (k-board write auth): an unassigned card must be CLAIMED
             # by the authenticated actor on its first write; once claimed by the
             # hub, only the hub may move it. Claim exactly once, never reassign.
             if self._actor and current.raw.get("assignee") is None:

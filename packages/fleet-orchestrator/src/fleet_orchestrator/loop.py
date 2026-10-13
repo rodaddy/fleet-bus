@@ -1101,7 +1101,7 @@ async def build_hub(
     which enforces the configured version floor (#103). With no floor set
     (``FLEET_SUBJECT_CATALOG_MIN_VERSION`` unset/0) it fails open to the baked-in
     code defaults with a loud log when the registry is unreachable — the bus must
-    never fail closed on Postgres (fleet-board #15). With a floor set, a
+    never fail closed on Postgres (the k-board registry endpoint). With a floor set, a
     below-floor catalog (including the version-0 code fallback on a registry
     outage) raises ``CatalogVersionTooLowError`` and the hub refuses to start —
     a below-floor orchestrator speaks an obsolete taxonomy and splits the fleet.

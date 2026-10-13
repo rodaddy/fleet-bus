@@ -23,7 +23,7 @@
 > **No longer the plan** — §1's "pick a separate staging host" and the GO-gated
 > host stand-up. There is one cluster; both `dev.` and `prod.` subject prefixes
 > are granted per-user on it (see `/etc/fleet-js/nats-server.conf`, rendered by
-> rtech-infra `fleet-js-cluster.yml`, **not** by this repo).
+> the operator's own infrastructure config, **not** by this repo).
 >
 > Treat the sections below as the design rationale of record, not as an
 > executable host-provisioning runbook.
@@ -86,7 +86,7 @@ before it touches the live fleet. This is also the **JetStream pilot ground**
 
   > **This tripwire is not fail-closed isolation.** It only catches a prod *IP
   > literal* spelled into the URL. It **cannot** catch a DNS hostname that
-  > resolves to the prod IP — `FLEET_ENV=staging FLEET_NATS_URL=nats://fleet-hub.internal:4222`
+  > resolves to the prod IP — `FLEET_ENV=staging FLEET_NATS_URL=nats://fleet-hub.example.internal:4222`
   > constructs fine whenever that name resolves to `192.0.2.74`, because the
   > guard never resolves DNS (doing so would hang config construction) and the DNS
   > record lives outside this repo. **Distinct staging credentials (§2.1) are the

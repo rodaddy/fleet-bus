@@ -313,7 +313,7 @@ def token_cost(env: str, agent: str) -> str:
     """Per-agent token-cost feed subject (#27).
 
     One turn's measured token accounting is published here after each Hermes
-    agent turn (rtech-hermes #457). Its own lane, NOT folded into the heartbeat
+    agent turn (the agent runtime's post-turn hook). Its own lane, NOT folded into the heartbeat
     (#26): the cadences differ — a beat is bounded-interval, a cost event is
     per-turn — and a governor summing spend must not miss a turn between beats.
     """
@@ -392,7 +392,7 @@ def factory_runner(env: str, job_id: str) -> str:
 def factory_runner_wildcard(env: str) -> str:
     """Subscription wildcard matching EVERY runner job's telemetry lane.
 
-    The consumer (the rodaddy-watcher software factory) renders live run progress
+    The consumer (a software-factory dashboard) renders live run progress
     for jobs whose ids are unknown at subscribe time — mirrors
     :func:`agent_heartbeat_wildcard` / :func:`token_cost_wildcard`.
     """

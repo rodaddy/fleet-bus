@@ -1,4 +1,4 @@
-"""Subject-registry tests (fleet-board #15): code catalog, fetch, loud fallback."""
+"""Subject-registry tests (the k-board registry endpoint): code catalog, fetch, loud fallback."""
 
 from __future__ import annotations
 
