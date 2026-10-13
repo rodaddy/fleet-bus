@@ -1,0 +1,55 @@
+[project]
+name = "fleet-nats"
+version = "0.1.0"
+description = "Canonical NATS transport + coordination library for the fleet (agents, OB, k-board, Dash). One lib, many thin consumers."
+# Floor 3.13 (Rico's call): the fleet standard is CPython 3.13.13 (rtech-hermes #338).
+# Live gateway-venv truth (probed 2026-07-07): Nagatha 3.13.14 (rolled out), Bilby
+# 3.11.2 + Skippy 3.11.15 (rollout pending — #338 order is Bilby -> Nagatha -> Skippy;
+# only Nagatha has landed). Agent-side fleet-nats install waits on #338 completing.
+requires-python = ">=3.13"
+dependencies = [
+    "fleet-core",
+    "nats-py[nkeys]>=2.15",  # nkeys extra required for .creds/user_credentials auth (#104); clean on Python 3.13 (verified live on Skippy 2026-07-07)
+    "loguru>=0.7",
+    "httpx>=0.27",  # subject-registry fetch (k-board nats_subjects, fleet-board #15)
+]
+
+[tool.uv.sources]
+fleet-core = { workspace = true }
+
+[project.scripts]
+# show-your-work CLI (#64): reconstruct one task's scoped deliberation trail from
+# the hub's per-task frame journal. Pull-only, read-only. Equivalent to
+# `python -m fleet_nats.showwork_cli`. NOT wired to a live display path yet — the
+# Discord-thread display command lands with the deploy phase.
+fleet-show-work = "fleet_nats.showwork_cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fleet_nats"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"  # match requires-python >=3.13 (the version the fleet runs)
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.13"  # match requires-python >=3.13
+strict = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

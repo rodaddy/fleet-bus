@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan: fleet-core — the base package every fleet client imports</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%232DD4BF'/%3E%3Crect x='3' y='3' width='10' height='10' rx='2' fill='none' stroke='%230E1116' stroke-width='1.4'/%3E%3Ccircle cx='8' cy='8' r='2' fill='%230E1116'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg:        #0E1116;
+    --surface:   #161B22;
+    --surface-2: #1C2230;
+    --border:    #2A3344;
+    --text:      #E6EAF2;
+    --muted:     #9AA7BD;
+    --dim:       #5C6B85;
+    --violet:    #8B7FF7;
+    --cyan:      #2DD4BF;
+    --amber:     #F5B547;
+    --green:     #4ADE80;
+    --red:       #F87171;
+    --radius:    14px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(139,127,247,0.10), transparent 60%),
+      radial-gradient(1000px 500px at -10% 10%, rgba(45,212,191,0.07), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 940px; margin: 0 auto; padding: 56px 24px 120px; }
+  header h1 {
+    font-size: clamp(1.9rem, 4vw, 2.7rem);
+    line-height: 1.12;
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+    background: linear-gradient(100deg, var(--text) 30%, var(--violet) 70%, var(--cyan));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .tagline { color: var(--muted); font-size: 1.05rem; margin: 0 0 18px; }
+  details.meta {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 16px; margin-bottom: 8px; font-size: 0.86rem;
+  }
+  details.meta summary { cursor: pointer; color: var(--violet); font-weight: 600; font-family: var(--mono); letter-spacing: 0.02em; }
+  details.meta dl { display: grid; grid-template-columns: 130px 1fr; gap: 4px 14px; margin: 12px 0 4px; }
+  details.meta dt { color: var(--dim); font-family: var(--mono); font-size: 0.8rem; }
+  details.meta dd { margin: 0; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; word-break: break-word; }
+  section { margin-top: 52px; scroll-margin-top: 24px; }
+  h2 { font-size: 1.6rem; letter-spacing: -0.01em; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h2::before { content: "\25DA  "; color: var(--violet); }
+  h3 { font-size: 1.18rem; margin: 26px 0 10px; color: var(--text); }
+  h4 { font-size: 1rem; margin: 20px 0 8px; color: var(--cyan); font-family: var(--mono); }
+  p { color: var(--text); }
+  a { color: var(--cyan); }
+  figure { margin: 22px 0; text-align: center; }
+  figure img { max-width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.45); }
+  figcaption { color: var(--dim); font-size: 0.82rem; margin-top: 10px; font-style: italic; }
+  .img-placeholder { border: 1px dashed var(--border); border-radius: var(--radius); padding: 30px; color: var(--dim); font-family: var(--mono); font-size: 0.8rem; background: var(--surface); }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-2); color: var(--cyan); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); }
+  pre { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; overflow-x: auto; font-size: 0.84rem; line-height: 1.55; }
+  pre code { background: none; border: none; padding: 0; color: var(--text); }
+  .tok-k { color: var(--violet); }
+  .tok-s { color: var(--green); }
+  .tok-c { color: var(--dim); font-style: italic; }
+  .tok-f { color: var(--cyan); }
+  ul, ol { padding-left: 22px; }
+  li { margin: 5px 0; }
+  ul.checklist { list-style: none; padding-left: 4px; }
+  ul.checklist > li { margin: 7px 0; }
+  .tag { font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); vertical-align: middle; }
+  .tag.existing { color: var(--amber); border-color: rgba(245,181,71,0.4); background: rgba(245,181,71,0.08); }
+  .tag.new { color: var(--green); border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.08); }
+  .tag.keystone { color: var(--violet); border-color: rgba(139,127,247,0.5); background: rgba(139,127,247,0.12); }
+  .status { font-weight: 700; color: var(--dim); }
+  .phase { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--violet); border-radius: var(--radius); padding: 4px 22px 22px; margin: 22px 0; }
+  .phase.keystone { border-left-color: var(--cyan); box-shadow: 0 0 0 1px rgba(45,212,191,0.18); }
+  .phase h3 { color: var(--text); }
+  .phase h3 .status { margin-right: 6px; }
+  .loop { margin-top: 16px; padding: 12px 16px; background: rgba(45,212,191,0.06); border: 1px solid rgba(45,212,191,0.3); border-radius: 10px; font-size: 0.9rem; color: var(--text); }
+  .callout { border-radius: var(--radius); padding: 14px 18px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); }
+  .callout.warn { border-color: rgba(245,181,71,0.4); background: rgba(245,181,71,0.06); }
+  .callout.key  { border-color: rgba(139,127,247,0.45); background: rgba(139,127,247,0.07); }
+  .callout.strike { border-color: rgba(248,113,113,0.4); background: rgba(248,113,113,0.06); }
+  .callout .lbl { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--violet); display:block; margin-bottom: 4px; }
+  .callout.warn .lbl { color: var(--amber); }
+  .callout.strike .lbl { color: var(--red); }
+  table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--violet); font-family: var(--mono); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td code { font-size: 0.82em; }
+  .yes { color: var(--green); } .no { color: var(--red); } .chg { color: var(--amber); }
+  .strikethrough { color: var(--dim); text-decoration: line-through; }
+  details.qa, details.amend { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; margin: 10px 0; }
+  details.qa summary, details.amend summary { cursor: pointer; color: var(--cyan); font-weight: 600; }
+  .qa-answer { color: var(--muted); margin-top: 10px; }
+  hr.soft { border: none; border-top: 1px solid var(--border); margin: 34px 0; }
+  .pill { font-family: var(--mono); font-size: 0.72rem; color: var(--cyan); border: 1px solid var(--border); padding: 2px 8px; border-radius: 999px; }
+  ol.rules { counter-reset: rule; list-style: none; padding-left: 0; }
+  ol.rules > li { counter-increment: rule; position: relative; padding: 12px 16px 12px 54px; margin: 10px 0; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--red); border-radius: 10px; }
+  ol.rules > li::before { content: counter(rule); position: absolute; left: 16px; top: 12px; font-family: var(--mono); font-weight: 800; color: var(--red); font-size: 1.05rem; }
+  ol.rules > li b { color: var(--text); }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Plan: fleet-core — the base package every fleet client imports</h1>
+  <p class="tagline">One NATS substrate, many clients. The spec is code, the correct thing is automatic, the deviation is deliberate. Durable-by-default.</p>
+  <details class="meta">
+    <summary>Metadata</summary>
+    <dl>
+      <dt>status</dt><dd>ratified 2026-07-11 (Rico); C1&ndash;C7 landed on main, C8 in progress (this PR)</dd>
+      <dt>repo</dt><dd>rodaddy/fleet-bus</dd>
+      <dt>plan file</dt><dd>docs/fleet-core-plan.html</dd>
+      <dt>epic</dt><dd>#165 (C1&ndash;C8 = #166&ndash;#173; deferred uv-index #174)</dd>
+      <dt>supersedes</dt><dd>architecture.md &sect;1 JetStream-as-infra invariant; re-frames #123</dd>
+      <dt>downstream</dt><dd>rtech-agents / you-local / OB / k-board / Dash are CONSUMERS, not drivers</dd>
+    </dl>
+  </details>
+</header>
+
+<section id="purpose">
+  <h2>Purpose</h2>
+  <p>The fleet is one NATS substrate with many clients &mdash; Hermes agents, rtech-agents, you-local, Open Brain, k-board, Dash. They were meant to move forward together, bus-first, with agents as the first validator. Instead each package grew its own truth: three fleet packages that all touch the wire drift from each other; the message shapes are frozen dataclasses described by docstrings rather than an <em>enforced</em> spec; coordination signals ride prose trailers (<code>[[done]]</code>, <code>[[stance:]]</code>) an agent must remember to emit; and durability is off everywhere (at-most-once) while the docs claim guarantees the transport does not provide.</p>
+  <p>The fix is a single <strong>base package every client imports</strong>: <code>packages/fleet-core</code>. The spec <em>is</em> code &mdash; import fleet-core and you are a compliant citizen.</p>
+</section>
+
+<section id="spine">
+  <h2>The spine</h2>
+  <div class="callout key"><span class="lbl">Non-negotiable</span>
+    fleet-core owns the message spec (Pydantic), config, logging, and a default transport. Every fleet package and downstream app depends on it. If a client imports <strong>only</strong> fleet-core it is correct on the bus: connected the standard way, logging the standard way, emitting standard-shaped validated messages. Everything above (orchestration, subscriber adapters, agent engines) is opt-in capability, never a prerequisite for being on the bus properly.</p>
+  </div>
+  <ul>
+    <li><strong>Spec = Pydantic, not prose, not dataclasses.</strong> Envelope, heartbeat/presence, stance, done, and the typed act/state enum are Pydantic models. Static-ish: agreed fields validate hard; <code>ConfigDict(extra="allow")</code> lets a client carry its own signal (an agent's <code>active_turn</code>, a worker's <code>role/lanes</code>) without forking the class or breaking a reader that does not know the field. Honors the closed C2 policy (#111): unknown-field preservation, additive-only within a major, explicit versioning.</li>
+    <li><strong>Durable-by-default.</strong> JetStream on for almost everything; core-NATS is the declared opt-out. The asymmetry decides it &mdash; on-when-unneeded is harmless, off-when-needed is silent loss.</li>
+    <li><strong>Transport has a blessed default, one override seam.</strong> Import fleet-core, get a correct transport. Exotic needs override that one method in a subclass; the spec + subjects are load-bearing invariants, not override-able.</li>
+    <li><strong>uv-git-installable.</strong> Downstream apps <code>uv add</code> fleet-core from a private GitHub ref; versioning kept correct so pins resolve across clients on different cadences.</li>
+  </ul>
+</section>
+
+<section id="durable">
+  <h2>Durable-by-default &mdash; and the one exception</h2>
+  <p>JetStream is <strong>on by default</strong>. On-when-unneeded costs a little overhead and some stream state nobody reads; off-when-needed is a task frame that vanishes with no error. Those are not comparable failures, so the base biases to the harmless one. Durability is what a new client inherits for free; losing it is an explicit, justified opt-out.</p>
+  <div class="callout warn"><span class="lbl">The ephemeral exception: heartbeat</span>
+    Heartbeat's base class sets <code>jetstream=False</code> in its own init. A heartbeat's meaning is its <em>absence</em> &mdash; a missed live beat is the signal something is dead. Durability would redeliver a dead agent's stale beats (the retention lies). And a heartbeat that did not arrive has nothing to recover &mdash; no retry, no DLQ. The base owns this so every client inherits it without knowing heartbeats are special.
+  </div>
+  <div class="callout strike"><span class="lbl">Supersedes</span>
+    This reverses <code>architecture.md</code> &sect;1 (&ldquo;JetStream is infra, invisible to agents, NATS core only&rdquo;) and re-frames the JetStream epic (#123) from a slow staging-gated opt-in rollout into the durable-by-default posture. Staging (F3/#105) still proves the load profile before the default lands fleet-wide.
+  </div>
+</section>
+
+<section id="phases">
+  <h2>Implementation phases</h2>
+  <p>Base-first. <code>fleet-core</code> is built, then the packages re-point onto it, then Wave 0 advances on the new base. Status markers: <code>[]</code> idle &middot; <code>[wip]</code> in progress &middot; <code>[x]</code> complete &middot; <code>[f]</code> failed. A phase header is <code>[x]</code> only when every child box is &mdash; completion is derived, never typed on the header.</p>
+
+  <div class="phase keystone">
+    <h3><code class="status">[x]</code> Phase 1: KEYSTONE &mdash; fleet-core package + message spec <span class="tag keystone">keystone</span></h3>
+    <p>Nothing is trusted until the spec is code and the package installs.</p>
+    <ul class="checklist">
+      <li><code class="status">[x]</code> <strong>C1 (#166)</strong> &mdash; <code>packages/fleet-core</code> skeleton, uv workspace member, Pydantic dep, uv-git-installable from a private GitHub ref, release tagging + version discipline.</li>
+      <li><code class="status">[x]</code> <strong>C2 (#167)</strong> &mdash; the message spec: Pydantic <code>Envelope</code> (promote the fleet-nats dataclass, keep extra-carry as <code>extra="allow"</code>), <code>Heartbeat</code>/<code>Presence</code>, <code>Stance</code>, <code>Done</code>, and the typed <code>act/state</code> enum (FIPA-ACL subset + A2A states). Folds #120; honors closed #111. This is what supersedes the deleted <code>[[done]]</code>/<code>[[stance:]]</code> trailers.</li>
+    </ul>
+    <div class="loop">Do not exit until the spec is Pydantic and fleet-core installs from GitHub. This phase is the product.</div>
+  </div>
+
+  <div class="phase">
+    <h3><code class="status">[x]</code> Phase 2: config, logging, transport, durability</h3>
+    <ul class="checklist">
+      <li><code class="status">[x]</code> <strong>C3 (#168)</strong> &mdash; <code>BusConfig.from_env</code>, credential sources, env matrix; the one logging convention, importable from fleet-core.</li>
+      <li><code class="status">[x]</code> <strong>C4 (#169)</strong> &mdash; default override-able transport (connect/publish/subscribe/request/reply/close); JetStream durable-by-default capability; one override seam, spec/subjects not override-able.</li>
+      <li><code class="status">[x]</code> <strong>C5 (#170)</strong> &mdash; heartbeat ephemeral exception (<code>jetstream=False</code> in base). Home for #126.</li>
+    </ul>
+  </div>
+
+  <div class="phase">
+    <h3><code class="status">[x]</code> Phase 3: re-point the packages <span class="tag existing">reuse</span></h3>
+    <p>The three fleet packages become consumers of fleet-core &mdash; existing consumers stay green (shim/re-export as needed).</p>
+    <ul class="checklist">
+      <li><code class="status">[x]</code> <strong>C6 (#171)</strong> &mdash; fleet-nats imports spec + transport from fleet-core; keeps subject builders + bus helpers; dataclass Envelope/BusConfig removed in favor of the Pydantic models.</li>
+      <li><code class="status">[x]</code> <strong>C7 (#172)</strong> &mdash; fleet-orchestrator reads the typed fleet-core Stance/Done signals; fleet-subscriber keeps pure mapping/role and emits typed turn fields on its active send path, its prose-trailer parsers (<code>completion.py</code>/<code>stance.py</code>) kept only as legacy compatibility, superseded by typed spec fields on the coordinated path.</li>
+      <li><code class="status">[x]</code> <strong>C8 (#173)</strong> &mdash; merged via #184: reconciled <code>architecture.md</code> &sect;1 (durable-by-default) + the C7-typed done/stance paths; re-framed #123; generalized <code>consumers.md</code> single-source rule from subjects to the whole base; refreshed this plan from live state.</li>
+    </ul>
+  </div>
+
+  <div class="phase">
+    <h3><code class="status">[]</code> Phase 4: Wave 0 on the new base <span class="tag existing">existing board</span></h3>
+    <p>Foundations build on fleet-core. F2 (auth) may advance in parallel with the base &mdash; urgent security, does not wait for the full spec.</p>
+    <ul class="checklist">
+      <li><code class="status">[]</code> <strong>F2 auth (#104)</strong> &mdash; dedicated per-agent NATS creds + deny-by-default per-subject allow-lists + <code>$SYS</code> on fleet-hub. <span class="tag new">ratification gate</span></li>
+      <li><code class="status">[x]</code> <strong>F1 registry (#103)</strong> &mdash; catalog-version enforcement (code-complete on main; infra deploy remains).</li>
+      <li><code class="status">[]</code> <strong>F3 staging (#105)</strong> &mdash; separate NATS server + shadow hub. <span class="tag new">ratification gate</span></li>
+      <li><code class="status">[wip]</code> F2 auth (#104): PR #183 OPEN / HELD FOR REDESIGN.</li>
+      <li><code class="status">[x]</code> F4 governor (#106): PR #146 MERGED, issue #106 CLOSED.</li>
+      <li><code class="status">[wip]</code> F5 kill-switch (#107): PR #150 OPEN / HELD FOR REDESIGN (prior review: DO-NOT-MERGE, 2 HIGH).</li>
+    </ul>
+  </div>
+</section>
+
+<section id="rules">
+  <h2>Hard rules (stamped on every worker brief)</h2>
+  <ol>
+    <li>fleet-core is the base; import it, do not reinvent. Capability gaps &rarr; file back as a fleet-core issue, never fork the transport or hand-format a subject.</li>
+    <li>The spec is code: signals are typed Pydantic fields, never prose trailers. <code>[[done]]</code>/<code>[[stance:]]</code> are deleted at the root.</li>
+    <li>Durable-by-default; the only ephemeral exception is heartbeat. Losing durability is an explicit, justified opt-out.</li>
+    <li><code>extra="allow"</code> for client-specific signal; the agreed fields validate hard.</li>
+    <li>mypy <code>--strict</code> + ruff + pytest green; disjoint write sets per lane.</li>
+    <li>Backward compat: re-pointing a package keeps its existing consumers working &mdash; no silent break across the fleet.</li>
+  </ol>
+</section>
+
+<section id="gates">
+  <h2>Ratification gates &mdash; stop only for these</h2>
+  <div class="callout warn"><span class="lbl">Do not stall</span>
+    A blocked lane <strong>parks</strong>; the run keeps moving. Stop only for the gates below (Rico's call). Everything else &mdash; all of fleet-core C1&ndash;C8, the #146/#150 review-merge, package re-point, doc rewrites &mdash; dispatch freely.
+  </div>
+  <ul>
+    <li><strong>F2 auth posture (#104)</strong> &mdash; per-agent creds + deny-by-default allow-lists + <code>$SYS</code>. OB-token reuse already REJECTED on codex review. Live-infra approval gate: applying the fleet-hub NATS server config + provisioning Vaultwarden creds is a live-infra change, still to be approved before the auth posture lands on the running server.</li>
+    <li><strong>F3 staging host (#105)</strong> &mdash; a separate NATS server on its own host (subject-prefix is not isolation). Target-selection gate: the staging host has not been chosen; standing up a new host is a live-infra change, still to be selected and approved.</li>
+    <li>Any new fleet-wide default that changes prod bus behavior before F3 staging proves it.</li>
+  </ul>
+</section>
+
+<section id="where">
+  <h2>How far are we?</h2>
+  <table>
+    <thead><tr><th>Piece</th><th>Status</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>fleet-core package (C1&ndash;C5)</td><td>BUILT / MERGED</td><td>On main: Pydantic spec, config/logging, durable-default transport, heartbeat exception.</td></tr>
+      <tr><td>fleet-nats re-point (C6 #171)</td><td>MERGED</td><td>Imports/re-exports the fleet-core spec/config/transport behind legacy compatibility; subjects/registry/KV stay fleet-nats-owned.</td></tr>
+      <tr><td>orchestrator + subscriber re-point (C7 #172)</td><td>MERGED</td><td>Orchestrator reads typed Stance/Done; subscriber emits typed turn fields; prose trailers demoted to legacy compat.</td></tr>
+      <tr><td>C8 docs reconciliation (#173)</td><td>MERGED</td><td>PR #184 refreshed architecture.md, consumers.md, and this plan to the merged base.</td></tr>
+      <tr><td>C2 schema-compat policy (#111)</td><td>CLOSED / ratified</td><td>The spec honors it &mdash; unknown-field preservation, additive-only, explicit vers.</td></tr>
+      <tr><td>durable-by-default</td><td>BUILT (base default); prod cutover gated</td><td>Durable-default transport landed; F3/#105 gates the fleet-wide prod cutover.</td></tr>
+      <tr><td>F1 registry (#103)</td><td>CODE-COMPLETE (issue OPEN)</td><td>On main; infra deploy remains.</td></tr>
+      <tr><td>F2 auth (#104) / F3 staging (#105)</td><td>RUN AUTHORIZED; live-infra gated</td><td>Rico authorized the design/implementation run; the remaining gate is live-infra approval (NATS server config + creds / staging host), not the build.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="parked">
+  <h2>Parked / not this run</h2>
+  <p>rtech-agents adopting fleet-core (validator #1 &mdash; a later run); you-local (validator #2); k-board / OB / Dash migration; the deferred self-hosted uv index (#174); the topic-split epic (#115) build (foundations first); live-fleet auth cutover beyond the F2 ratification.</p>
+  <div class="callout warn"><span class="lbl">Downstream adoption NOT claimed complete</span>
+    fleet-core is the merged base <em>inside this repo</em> (fleet-nats / fleet-orchestrator / fleet-subscriber). External adoption &mdash; rtech-agents, you-local, Open Brain, k-board, Dash &mdash; remains a CONSUMER obligation not yet done. This plan does not represent any external repo as migrated.
+  </div>
+</section>
+
+<section id="amendments">
+  <h2>Amendments (append-only)</h2>
+
+  <details class="amend" open>
+    <summary>2026-07-12 &mdash; C1&ndash;C8 landed; fleet-core base complete</summary>
+    <div class="qa-answer">
+      <p><strong>What changed.</strong> Refreshed the plan from live verified state: Phase 1 (C1 #166, C2 #167), Phase 2 (C3 #168, C4 #169, C5 #170), and Phase 3 (C6 #171, C7 #172, C8 #173) are all marked <code>[x]</code> with their headers derived complete. The stale &ldquo;NOT BUILT &mdash; this run&rdquo; framing in <em>How far are we?</em> was corrected to BUILT/MERGED.</p>
+      <p><strong>Evidence (verified 2026-07-12).</strong></p>
+      <ul>
+        <li>GitHub issue state: #166&ndash;#173 <code>CLOSED</code>; C8 merged via PR #184.</li>
+        <li><code>git log origin/main</code>: <code>Merge pull request #182 from rodaddy/feat/172-downstream-core-repoint</code> (C7) is on <code>main</code>; C1&ndash;C6 merges (#179/#180/#181 and predecessors) precede it. This branch merged <code>origin/main</code> (no rebase) before editing.</li>
+        <li>Source: <code>fleet_subscriber/completion.py</code> header states &ldquo;C7 moved the active coordinated send path to typed turn fields &hellip; <code>NatsAdapter.send</code> does not call it to complete a coordinated turn&rdquo;; <code>fleet_orchestrator/score.py</code> parses <code>envelope.typed_signal</code> (fleet-core <code>Stance</code>) first, <code>payload.meta</code> as fallback.</li>
+      </ul>
+      <p><strong>Not claimed.</strong> No external repo (rtech-agents / OB / k-board / Dash) is represented as migrated; F1 #103 issue stays OPEN (code-complete on main, infra deploy remains); F2/F3 stay ratification-gated; C8 is not declared merged/closed &mdash; it is this in-progress PR.</p>
+    </div>
+  </details>
+</section>
+</main>
+</body>
+</html>

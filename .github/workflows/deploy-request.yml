@@ -1,0 +1,30 @@
+name: Request fleet hub deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-dispatch:
+    name: Accept main deployment request
+    # MUST stay GitHub-hosted. This workflow is workflow_dispatch-able from any
+    # editable ref, so it is the untrusted entry point: an attacker-editable
+    # workflow must never execute on the fleet's own runners. The trusted
+    # default-branch workflow_run continuation in deploy.yml is the ONLY path to
+    # a fleet runner, and it binds checkout/deploy to the request SHA.
+    #
+    # tests/deploy-hub-release.test.sh pins this two ways: it requires this exact
+    # line, AND it fails if the runner-class string appears ANYWHERE in this
+    # file — deliberately blunt, so a commented-out or reordered variant cannot
+    # slip past. Do not re-target this job for CI-cost or billing reasons.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require main
+        env:
+          SELECTED_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          test "$SELECTED_REF" = refs/heads/main

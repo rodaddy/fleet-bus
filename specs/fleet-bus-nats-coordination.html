@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan: Fleet-Bus — Canonical NATS Coordination Layer</title>
+<!-- Per-plan favicon: a violet message-bus glyph with two cyan nodes (codex image-gen2), base64-embedded so the plan stays self-contained. Source PNG: fleet-bus-nats-coordination/favicon.png. -->
+<link rel="icon" href="data:image/png;base64,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">
+<style>
+  :root {
+    --bg:        #0E1116;
+    --surface:   #161B22;
+    --surface-2: #1C2230;
+    --border:    #2A3344;
+    --text:      #E6EAF2;
+    --muted:     #9AA7BD;
+    --dim:       #5C6B85;
+    --violet:    #8B7FF7;   /* orchestrator / control plane */
+    --cyan:      #2DD4BF;   /* NATS transport               */
+    --amber:     #F5B547;   /* k-board / durability         */
+    --green:     #4ADE80;
+    --red:       #F87171;
+    --radius:    14px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(139,127,247,0.10), transparent 60%),
+      radial-gradient(1000px 500px at -10% 10%, rgba(45,212,191,0.07), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 920px; margin: 0 auto; padding: 56px 24px 120px; }
+  header h1 {
+    font-size: clamp(1.9rem, 4vw, 2.7rem);
+    line-height: 1.12; margin: 0 0 6px; letter-spacing: -0.02em;
+    background: linear-gradient(100deg, var(--text) 30%, var(--violet) 70%, var(--cyan));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .tagline { color: var(--muted); font-size: 1.05rem; margin: 0 0 18px; }
+  details.meta {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 10px 16px; margin-bottom: 8px; font-size: 0.86rem;
+  }
+  details.meta summary { cursor: pointer; color: var(--violet); font-weight: 600; font-family: var(--mono); letter-spacing: 0.02em; }
+  details.meta dl { display: grid; grid-template-columns: 130px 1fr; gap: 4px 14px; margin: 12px 0 4px; }
+  details.meta dt { color: var(--dim); font-family: var(--mono); font-size: 0.8rem; }
+  details.meta dd { margin: 0; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; word-break: break-word; }
+  section { margin-top: 52px; scroll-margin-top: 24px; }
+  h2 { font-size: 1.6rem; letter-spacing: -0.01em; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h2::before { content: "▚ "; color: var(--violet); }
+  h3 { font-size: 1.18rem; margin: 26px 0 10px; color: var(--text); }
+  h4 { font-size: 1rem; margin: 20px 0 8px; color: var(--cyan); font-family: var(--mono); }
+  p { color: var(--text); }
+  a { color: var(--cyan); }
+  figure { margin: 22px 0; text-align: center; }
+  figure img { max-width: 100%; height: auto; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.45); }
+  figcaption { color: var(--dim); font-size: 0.82rem; margin-top: 10px; font-style: italic; }
+  .img-placeholder { border: 1px dashed var(--border); border-radius: var(--radius); padding: 30px; color: var(--dim); font-family: var(--mono); font-size: 0.8rem; background: var(--surface); }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--surface-2); color: var(--cyan); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--border); }
+  pre { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; overflow-x: auto; font-size: 0.84rem; line-height: 1.55; }
+  pre code { background: none; border: none; padding: 0; color: var(--text); }
+  .tok-k { color: var(--violet); } .tok-s { color: var(--green); } .tok-c { color: var(--dim); font-style: italic; } .tok-f { color: var(--cyan); }
+  ul, ol { padding-left: 22px; } li { margin: 5px 0; }
+  ul.checklist { list-style: none; padding-left: 4px; } ul.checklist > li { margin: 7px 0; }
+  .tag { font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); vertical-align: middle; }
+  .tag.existing { color: var(--amber); border-color: rgba(245,181,71,0.4); background: rgba(245,181,71,0.08); }
+  .tag.new { color: var(--green); border-color: rgba(74,222,128,0.4); background: rgba(74,222,128,0.08); }
+  .status { font-weight: 700; color: var(--dim); }
+  .phase { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--violet); border-radius: var(--radius); padding: 4px 22px 22px; margin: 22px 0; }
+  .phase h3 { color: var(--text); } .phase h3 .status { margin-right: 6px; }
+  .loop { margin-top: 16px; padding: 12px 16px; background: rgba(45,212,191,0.06); border: 1px solid rgba(45,212,191,0.3); border-radius: 10px; font-size: 0.9rem; color: var(--text); }
+  .callout { border-radius: var(--radius); padding: 14px 18px; margin: 18px 0; border: 1px solid var(--border); background: var(--surface-2); }
+  .callout.warn { border-color: rgba(245,181,71,0.4); background: rgba(245,181,71,0.06); }
+  .callout.key  { border-color: rgba(139,127,247,0.45); background: rgba(139,127,247,0.07); }
+  .callout .lbl { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--violet); display:block; margin-bottom: 4px; }
+  .callout.warn .lbl { color: var(--amber); }
+  table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--violet); font-family: var(--mono); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  td code { font-size: 0.82em; }
+  .yes { color: var(--green); } .no { color: var(--red); } .chg { color: var(--amber); }
+  details.qa, details.amend { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; margin: 10px 0; }
+  details.qa summary, details.amend summary { cursor: pointer; color: var(--cyan); font-weight: 600; }
+  .qa-answer { color: var(--muted); margin-top: 10px; }
+  hr.soft { border: none; border-top: 1px solid var(--border); margin: 34px 0; }
+  .pill { font-family: var(--mono); font-size: 0.72rem; color: var(--cyan); border: 1px solid var(--border); padding: 2px 8px; border-radius: 999px; }
+</style>
+</head>
+<body>
+<main>
+
+  <header>
+    <h1>Plan: Fleet-Bus — Canonical NATS Coordination Layer</h1>
+    <p class="tagline">Make <code>fleet-nats</code> the one NATS library every agent runs on, then build the deterministic DAP that replaces the human-in-the-loop — dispatch → relay → own-words in Discord → done. GitHub issues #3–#12.</p>
+    <details class="meta">
+      <summary>Metadata</summary>
+      <dl>
+        <dt>created</dt>      <dd>2026-07-07T14:30:00-08:00</dd>
+        <dt>modified</dt>     <dd>2026-07-07T14:30:00-08:00, 2026-07-07T17:02:00-08:00, 2026-07-08T01:13:38-04:00</dd>
+        <dt>commits</dt>      <dd>—</dd>
+        <dt>agent name</dt>   <dd>Bob (Claude Opus 4.8 1M)</dd>
+        <dt>session id</dt>   <dd>fleet-bus-cleanup-planf3</dd>
+        <dt>back refs</dt>    <dd>PR #2 (fleet-nats foundation), CLAUDE.md design invariants, docs/coding-standards.md</dd>
+        <dt>forward refs</dt> <dd>gh issues #3, #4, #5, #6, #7, #8, #9, #10, #11, #12</dd>
+      </dl>
+    </details>
+  </header>
+
+  <figure>
+    <img src="fleet-bus-nats-coordination/hero.png" alt="Fleet coordination control plane: manager and two worker agents over a violet NATS bus, Discord chat bubbles above, a Postgres record cylinder below.">
+    <figcaption>Fleet-bus at a glance: coordination jibber-jabber rides NATS; agents' own words ride Discord; k-board is the durable record.</figcaption>
+  </figure>
+
+  <section id="purpose">
+    <h2>Purpose</h2>
+    <p>Turn the shipped <code>fleet-nats</code> foundation into the <strong>full fleet coordination bus</strong>: one shared Python NATS library that every agent and system imports (never forks), plus the deterministic DAP orchestrator, per-agent Hermes subscribers, k-board bridge, and the operational story to run it live across the Nagatha / Skippy / Bilby trio. The north-star proof is a real task that a human posts, that the manager dispatches over NATS, that the workers coordinate on (with the orchestrator relaying when a worker forgets to hand off), that surfaces as the agents' <em>own words</em> in Discord, and that ends in a deterministic <code>done</code> with the trail persisted to k-board.</p>
+  </section>
+
+  <section id="problem">
+    <h2>Problem</h2>
+    <p>The June-5 DAP and the human-in-the-loop relay both failed: coordination was tangled up in Discord's mention-gate and thread mechanics, who-speaks-when was non-deterministic, and there was no durable record or unambiguous completion signal. Agent output is free-form prose — the system had no reliable way to know a turn was "done," no way to relay context a worker forgot to pass, and no single transport library, so every consumer risked forking its own NATS glue.</p>
+    <p>The foundation (<code>fleet-nats</code>: <code>Envelope</code>, <code>BusConfig</code>, <code>FleetBus</code>, <code>subjects</code>) exists on branch <code>feat/fleet-nats-foundation</code> (PR #2, MERGEABLE/CLEAN) but is not merged, and nothing is built on top of it yet. Issues #3–#12 are the whole build; this plan sequences them by dependency so a developer or agent can execute top-to-bottom.</p>
+    <figure>
+      <img src="fleet-bus-nats-coordination/problem.png" alt="Before: three agents tangled in crossing chat-mention arrows around a cracked red coordination node, no durable record.">
+      <figcaption>Before: coordination trapped in Discord mechanics — non-deterministic, no completion signal, no durable record.</figcaption>
+    </figure>
+  </section>
+
+  <section id="solution">
+    <h2>Solution</h2>
+    <p>Layer three things on the one shared library, in dependency order:</p>
+    <ol>
+      <li><strong>Deterministic orchestrator (<code>fleet-orchestrator</code>)</strong> — a pure state machine (<code>DISPATCHED → WORKING → RELAY_NEEDED → ARBITRATING → DONE</code>) with a <code>next_action(state, event) → Action</code> case-statement heart, then bus-wired dispatch / relay / arbitrate / wake behaviors. No LLM in the control path.</li>
+      <li><strong>Per-agent Hermes subscriber</strong> — a <code>register_platform</code> adapter that turns an inbound NATS envelope into a synthetic <code>MessageEvent(internal=True)</code>, runs a full agent turn, and surfaces the agent's own reply to Discord. Plus a deterministic <code>kind="done"</code> completion sentinel.</li>
+      <li><strong>Durability + delivery split</strong> — the k-board (Postgres, CAS-safe) is the handoff source of truth; NATS is delivery only. Structured sanitized logging across everything, the canonical-lib adapter pattern for OB/k-board/Dash/dev, and an operator runbook.</li>
+    </ol>
+    <p>Then <strong>prove it live</strong>: deploy the subscriber across the trio and run an end-to-end scenario against the real fleet-hub bus and real agents, capturing evidence. "It compiles" is necessary but never sufficient (repeated fleet lesson, baked into the gates below).</p>
+    <figure>
+      <img src="fleet-bus-nats-coordination/solution.png" alt="Layered stack: cyan transport at the base, violet deterministic orchestrator, subscriber-to-chat on top, amber record as a side rail.">
+      <figcaption>After: one transport library, a deterministic DAP above it, subscribers that run real agent turns, k-board as the record.</figcaption>
+    </figure>
+    <div class="callout key">
+      <span class="lbl">Design invariants (do not violate)</span>
+      Discord = human display (agents post their own words). NATS = the DAP control plane (deterministic code, off Discord's mention-gate). k-board Postgres = handoff source of truth; NATS delivers, it is not the record. JetStream is infra, invisible to agents — the agent-facing API is NATS core only. Build subjects <em>only</em> via <code>fleet_nats.subjects</code>. Connection config from env, never baked in.
+    </div>
+  </section>
+
+  <section id="files" class="files">
+    <h2>Relevant Files</h2>
+
+    <h3>Existing Files</h3>
+    <ul>
+      <li><span class="tag existing">existing</span> <code>packages/fleet-nats/src/fleet_nats/bus.py</code> — <code>FleetBus.connect/publish/subscribe/request/reply</code>; the transport every consumer builds on.</li>
+      <li><span class="tag existing">existing</span> <code>packages/fleet-nats/src/fleet_nats/subjects.py</code> — the ONLY sanctioned subject builder (<code>agent_dispatch/status/relay/wake/claim/arbitrate/inbox/heartbeat</code>, <code>direct</code>, <code>kboard_event</code>, <code>wildcard</code>).</li>
+      <li><span class="tag existing">existing</span> <code>packages/fleet-nats/src/fleet_nats/envelope.py</code> — the typed <code>Envelope</code> (caller-supplied id/ts; kinds include <code>done</code>); wire = UTF-8 JSON.</li>
+      <li><span class="tag existing">existing</span> <code>packages/fleet-nats/src/fleet_nats/config.py</code> — <code>BusConfig.from_env</code> (<code>FLEET_NATS_URL/FLEET_AGENT_ID/FLEET_ENV</code>); the env contract to mirror everywhere.</li>
+      <li><span class="tag existing">existing</span> <code>packages/fleet-nats/tests/test_bus_live.py</code> — the live-test + auto-skip-off-network pattern to copy for every live test.</li>
+      <li><span class="tag existing">existing</span> <code>.githooks/pre-push</code> — gates every package under <code>packages/*</code> with a <code>.venv</code>: <code>ruff check src/ tests/</code>, <code>ruff format --check</code>, <code>mypy src/ tests/</code>, <code>pytest -q</code>, ggshield. New packages are picked up automatically.</li>
+      <li><span class="tag existing">existing</span> <code>pyproject.toml</code> — uv workspace root (<code>members = packages/*</code>); add each new package as a workspace member.</li>
+      <li><span class="tag existing">existing</span> <code>docs/coding-standards.md</code> · <code>CLAUDE.md</code> — the dash-* standard + fleet-bus deltas; the authority for every gate.</li>
+      <li><span class="tag existing">existing</span> <code>README.md</code> — expanded into operator docs in Phase 8 (#12).</li>
+    </ul>
+
+    <h3>New Files</h3>
+    <ul>
+      <li><span class="tag new">new</span> <code>packages/fleet-orchestrator/</code> — second uv package: pyproject (workspace dep on fleet-nats), <code>src/fleet_orchestrator/{__init__,state,transitions,behaviors,kboard,logging}.py</code>, <code>tests/</code>. (#3, #4, #6, #7, #10)</li>
+      <li><span class="tag new">new</span> <code>packages/fleet-subscriber/</code> (or a Hermes-plugin dir named per Hermes convention) — the <code>register_platform</code> NATS adapter that forges <code>MessageEvent(internal=True)</code> and runs the agent turn. (#5, #6)</li>
+      <li><span class="tag new">new</span> <code>docs/consumers.md</code> — the canonical-lib adapter pattern for OB / k-board / Dash / local dev + a <code>direct.*</code> lane dev helper. (#11)</li>
+      <li><span class="tag new">new</span> <code>docs/logging.md</code> — structured sanitized logging convention (loguru), the never-log list, the JSONL trace flag. (#10)</li>
+      <li><span class="tag new">new</span> <code>docs/architecture.md</code> · <code>docs/runbook.md</code> — end-to-end architecture, subject tree, state machine, subscriber mechanism, per-agent enable, troubleshooting. (#12)</li>
+      <li><span class="tag new">new</span> <code>specs/fleet-bus-nats-coordination.verify.sh</code> — the plan checker: runs every phase's validation commands, prints per-box PASS/FAIL, exits non-zero on any fail. Build workflow sets markers from its exit code.</li>
+    </ul>
+  </section>
+
+  <section id="phases">
+    <h2>Implementation Phases</h2>
+    <p><strong>IMPORTANT:</strong> Execute every phase and task step by step, in order, top to bottom. Phases are ordered by hard dependency — the state machine (P1) must exist before it is bus-wired (P2); the subscriber (P3) and sentinel (P4) must exist before the trio can be deployed (P6) or proven (P7).</p>
+    <p>Status markers: <code>[]</code> idle · <code>[wip]</code> in progress · <code>[x]</code> complete · <code>[f]</code> failed. All start as <code>[]</code>; the Build Plan workflow updates them. <strong>A phase header is <code>[x]</code> only when EVERY sub-box under it is <code>[x]</code>. Validation boxes are set from <code>verify.sh</code>'s exit code, not self-judgement.</strong></p>
+
+    <div class="callout warn">
+      <span class="lbl">Universal per-phase gate</span>
+      Every code phase ends green on: <code>ruff check src/ tests/</code>, <code>ruff format --check src/ tests/</code>, <code>mypy src/ tests/</code>, <code>pytest tests/ -q</code> for its package, plus <code>docs/coding-standards.md</code> compliance (uv only; never main — branch <code>&lt;type&gt;/&lt;desc&gt;</code>; stage by name; no silent <code>except: pass</code>; log before fallback; <code>#!/usr/bin/env</code> shebangs). <strong>Sanitized structured logging (loguru, per <code>docs/logging.md</code>) is written into each module AS it is built — a per-phase acceptance criterion, not deferred to Phase 6.</strong> Each phase = its own PR through <code>/pre-merge-gauntlet</code>.
+    </div>
+
+    <!-- ===== PHASE 0 ===== -->
+    <div class="phase">
+      <h3><code class="status">[x]</code> Phase 0: Land the foundation (merge PR #2)</h3>
+      <p>Nothing branches off an unmerged base. Get the <code>fleet-nats</code> foundation onto <code>main</code> through the gauntlet, then all issue work branches off updated <code>main</code>.</p>
+
+      <h4>0.1 Run the pre-merge gauntlet on PR #2</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> Run <code>/pre-merge-gauntlet 2</code> in order: critical-mode → review-swarm → cross-model (Codex) review posting findings as PR comments → address ALL findings (fix or reply-waive on the PR).</li>
+        <li><code class="status">[x]</code> Confirm the local gates pass (pre-push already green: ruff/format/mypy/pytest 21 passed, ggshield clean).</li>
+        <li><code class="status">[x]</code> Report PR #2 as ready; <strong>the maintainer self-merges</strong> (never auto-merge; do not self-merge on the maintainer's behalf).</li>
+      </ul>
+
+      <h4>0.2 Testing Strategy</h4>
+      <p>Machine-verify the base is landed and clean before any dependent work starts.</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>test "$(gh pr view 2 --json state -q .state)" = "MERGED"</code> — proves PR #2 landed via the <code>state</code> field.</li>
+        <li><code class="status">[x]</code> <code>git checkout main &amp;&amp; git pull &amp;&amp; test -f packages/fleet-nats/src/fleet_nats/bus.py &amp;&amp; ! git ls-tree -r main --name-only | grep -q bilby_a2a</code> — proves fleet-nats is on main and the dead A2A tree is gone.</li>
+      </ul>
+      <div class="loop">🔁 Do not start Phase 1 until PR #2 is MERGED and <code>main</code> carries fleet-nats with zero bilby-a2a.</div>
+    </div>
+
+    <!-- ===== PHASE 1 ===== -->
+    <div class="phase">
+      <h3><code class="status">[x]</code> Phase 1: Orchestrator package + pure state machine <span class="pill">#3</span></h3>
+      <p>Add <code>packages/fleet-orchestrator/</code> — the deterministic DAP brain, pure and provable in isolation. No bus, no LLM, no I/O in this phase.</p>
+      <figure>
+        <img src="fleet-bus-nats-coordination/phase1-state-machine.png" alt="Five-node state machine DISPATCHED → WORKING → RELAY → ARBITRATE → DONE with a relay loop-back edge.">
+        <figcaption>The coordination state machine: five states, explicit event-driven transitions, fully unit-testable.</figcaption>
+      </figure>
+
+      <h4>1.1 Package skeleton (copy the fleet-nats pattern exactly)</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>packages/fleet-orchestrator/pyproject.toml</code> — uv, <code>requires-python &gt;=3.13</code>, workspace dep on <code>fleet-nats</code>, ruff + <code>mypy --strict</code> + pytest(-asyncio) dev extras; register it in root <code>pyproject.toml</code> members.</li>
+        <li><code class="status">[x]</code> <code>src/fleet_orchestrator/__init__.py</code> exporting the public surface (state enum, session dataclass, <code>next_action</code>, <code>Action</code>).</li>
+        <li><code class="status">[x]</code> <code>uv venv --python 3.13 --seed .venv &amp;&amp; uv pip install -e ".[dev]"</code> so the pre-push hook auto-gates this package.</li>
+      </ul>
+
+      <h4>1.2 Coordination state model + transition function</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> Frozen dataclass <code>CoordinationSession</code> (unit = one task worked by the trio) with an explicit <code>State</code> enum: <code>DISPATCHED → WORKING → RELAY_NEEDED → ARBITRATING → DONE</code>. Pure data, no I/O.</li>
+        <li><code class="status">[x]</code> Pure <code>next_action(state, event) -&gt; Action</code> case-statement — the heart. Caller supplies ids/timestamps (mirror <code>Envelope.new</code>); no <code>time</code>/random at import.</li>
+        <li><code class="status">[x]</code> Model the "worker forgot to mention the other worker → orchestrator must relay" path explicitly as a transition into <code>RELAY_NEEDED</code>.</li>
+      </ul>
+
+      <h4>1.3 Testing Strategy</h4>
+      <p>Exhaustive unit tests over every (state × event) pair with pytest — zero NATS, zero LLM. The state machine is provable in isolation before it is ever wired.</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>cd packages/fleet-orchestrator &amp;&amp; .venv/bin/python -m pytest tests/ -q</code> — proves every transition (incl. missing-handoff→RELAY_NEEDED) via green pytest output.</li>
+        <li><code class="status">[x]</code> <code>cd packages/fleet-orchestrator &amp;&amp; .venv/bin/ruff check src/ tests/ &amp;&amp; .venv/bin/ruff format --check src/ tests/ &amp;&amp; .venv/bin/mypy src/ tests/</code> — proves lint/format/strict-types clean via exit 0.</li>
+        <li><code class="status">[x]</code> <code>! grep -rnE 'import (time|random)' packages/fleet-orchestrator/src/fleet_orchestrator/__init__.py packages/fleet-orchestrator/src/fleet_orchestrator/state.py packages/fleet-orchestrator/src/fleet_orchestrator/transitions.py</code> — proves no time/random at import in the pure core.</li>
+      </ul>
+      <div class="loop">🔁 Do not exit until every box is checked. The state machine must be exhaustively tested before Phase 2 wires it to the bus.</div>
+    </div>
+
+    <!-- ===== PHASE 2 ===== -->
+    <div class="phase">
+      <h3><code class="status">[x]</code> Phase 2: Bus-wire relay + arbitrate + dispatch + wake <span class="pill">#4</span></h3>
+      <p>Connect the state machine to the live bus. Implement the four coordination behaviors that replace the failed DAP and the human relay. Subjects ONLY via <code>fleet_nats.subjects</code>.</p>
+
+      <h4>2.1 Behaviors</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <strong>Dispatch</strong> — publish <code>agent_dispatch(env, worker, channel=...)</code> envelopes to target worker(s) on a task.</li>
+        <li><code class="status">[x]</code> <strong>Relay</strong> (the human-replacement core) — subscribe to <code>agent_status</code>/worker output, deterministically detect the missing-handoff condition, publish <code>agent_relay(env, to)</code> with the missed context.</li>
+        <li><code class="status">[x]</code> <strong>Arbitrate</strong> — respond to <code>agent_arbitrate</code> request/reply with a deterministic decision policy (case-statement, not an LLM), via <code>FleetBus.reply</code>.</li>
+        <li><code class="status">[x]</code> <strong>Wake</strong> — <code>agent_wake(env, worker)</code> a worker that has gone quiet.</li>
+      </ul>
+
+      <h4>2.2 Testing Strategy</h4>
+      <p>Unit tests with a fake/in-memory bus prove each behavior deterministically; one live round-trip against fleet-hub proves real transport, auto-skipping off-network (mirror <code>test_bus_live.py</code>).</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>cd packages/fleet-orchestrator &amp;&amp; .venv/bin/python -m pytest tests/ -q -k "dispatch or relay or arbitrate or wake"</code> — proves fan-out, relay-on-missing-mention, arbitrate req→reply, wake via green pytest.</li>
+        <li><code class="status">[x]</code> <code>cd packages/fleet-orchestrator &amp;&amp; FLEET_NATS_URL=nats://192.0.2.74:4222 .venv/bin/python -m pytest tests/ -q -k live</code> — proves a real dispatch→status→relay round-trip on fleet-hub (auto-SKIP when unreachable keeps this green off-network).</li>
+        <li><code class="status">[x]</code> <code>! grep -rnE '"(dev|prod)\.(agent|direct|human|kboard)\.' packages/fleet-orchestrator/src</code> — proves no hand-formatted subjects (all built via <code>fleet_nats.subjects</code>).</li>
+      </ul>
+      <div class="loop">🔁 Do not exit until behaviors pass on the fake bus AND the live round-trip passes-or-skips cleanly.</div>
+    </div>
+
+    <!-- ===== PHASE 3 ===== -->
+    <div class="phase">
+      <h3><code class="status">[wip]</code> Phase 3: Per-agent Hermes subscriber plugin <span class="pill">#5</span></h3>
+      <p>Build the ingress: a Hermes <code>register_platform</code> adapter that receives an envelope off the bus and turns it into a real agent turn posting the agent's own words to Discord. Use the source-verified path — do NOT copy <code>teams_pipeline</code>.</p>
+      <figure>
+        <img src="fleet-bus-nats-coordination/phase3-ingress.png" alt="Ingress pipeline: message envelope → adapter → agent-turn → chat-send, four boxes left to right with flow arrows.">
+        <figcaption>Ingress path (Hermes v0.17-verified): envelope → adapter → synthetic MessageEvent(internal=True) → full agent turn → Discord.</figcaption>
+      </figure>
+
+      <h4>3.1 The adapter</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> Register a NATS platform adapter via <code>ctx.register_platform(...)</code>; its connect/start lifecycle owns the subscriber task (<code>asyncio.create_task</code>, held in a set, cancelled on shutdown — the <code>_background_tasks</code> idiom).</li>
+        <li><code class="status">[x]</code> On connect, subscribe to this agent's <code>dispatch/relay/wake/inbox</code> subjects via <code>fleet_nats.subjects</code>; config-driven (agent id/env/url from <code>fleet_nats.config</code>), config-gated to activate only where enabled.</li>
+        <li><code class="status">[x]</code> On each envelope: forge <code>MessageEvent(text=payload, source=SessionSource(target channel/thread), internal=True)</code> and <code>await gateway._handle_message(event)</code> (inline, not fire-and-forget) so success/failure stays observable.</li>
+        <li><code class="status">[x]</code> Push the returned reply via <code>DiscordAdapter.send(chat_id, content, metadata={thread_id:...})</code> — the agent's own words.</li>
+      </ul>
+
+      <h4>3.2 Testing Strategy</h4>
+      <p>Pure unit tests for the envelope→MessageEvent mapping (no gateway) and subscribe wiring (fake bus); a documented manual live verification against a real agent (do NOT claim done on "it compiles").</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>cd packages/fleet-subscriber &amp;&amp; .venv/bin/python -m pytest tests/ -q</code> — proves envelope→MessageEvent mapping + subscribe wiring via green pytest.</li>
+        <li><code class="status">[wip]</code> <code>test -f docs/subscriber-live-verify.md &amp;&amp; grep -qi 'discord' docs/subscriber-live-verify.md</code> — the live-verification procedure (NATS dispatch → agent's own reply in the target channel) is documented and the automated presence gate passes; the <strong>captured evidence</strong> (Discord permalink + gateway log trail) is pending the Phase 7 live deploy — it cannot run from the build host. Honestly <code>[wip]</code>, not <code>[x]</code>: doc done, real-agent evidence deferred to #8.</li>
+        <li><code class="status">[x]</code> <code>! grep -rn 'teams_pipeline' packages/fleet-subscriber/src</code> — proves the dead-end path was not copied; the sanctioned <code>register_platform</code> lever is used.</li>
+      </ul>
+      <div class="loop">🔁 Do not exit until unit tests pass AND a real NATS dispatch produced the agent's own words in Discord, with evidence captured.</div>
+    </div>
+
+    <!-- ===== PHASE 4 ===== -->
+    <div class="phase">
+      <h3><code class="status">[x]</code> Phase 4: Completion sentinel (kind=done) <span class="pill">#6</span></h3>
+      <p>Give the orchestrator an unambiguous "turn is done" signal. Prefer an explicit <code>kind="done"</code> envelope over text-scraping prose — deterministic and un-spoofable.</p>
+
+      <h4>4.1 The done signal</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> Define the <code>Envelope.kind="done"</code> shape (payload: <code>task_id</code>, <code>outcome</code>) and document it.</li>
+        <li><code class="status">[x]</code> Subscriber emits an <code>agent_status(env, task_id)</code> <code>done</code> envelope when a coordination turn finishes.</li>
+        <li><code class="status">[x]</code> Orchestrator consumes <code>done</code> and advances the state machine (<code>WORKING → DONE</code>, or <code>→ RELAY_NEEDED</code>).</li>
+      </ul>
+
+      <h4>4.2 Testing Strategy</h4>
+      <p>Fake-bus unit test proves the flow worker-finishes → done-status → orchestrator advances; one live round-trip confirms real transport.</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>.venv/bin/python -m pytest packages/fleet-orchestrator/tests -q -k done</code> — proves a <code>done</code> envelope advances the state machine to <code>DONE</code> via green pytest.</li>
+        <li><code class="status">[x]</code> <code>grep -rq 'kind.*done' docs/architecture.md || grep -rq 'kind="done"' packages/fleet-orchestrator/src</code> — proves the done-envelope shape (task_id, outcome) is documented in code/docs.</li>
+      </ul>
+      <div class="loop">🔁 Do not exit until the done envelope deterministically advances the orchestrator, proven on the fake bus and one live round-trip.</div>
+    </div>
+
+    <!-- ===== PHASE 5 ===== -->
+    <div class="phase">
+      <h3><code class="status">[x]</code> Phase 5: k-board bridge (CAS) + kboard NATS events <span class="pill">#7</span></h3>
+      <p>Make k-board the durable source of truth. Persist state transitions back to k-board (CAS-safe) and emit matching <code>kboard_event</code> envelopes; NATS stays delivery-only.</p>
+
+      <h4>5.1 CAS-safe client + orchestrator hooks</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> Small k-board client (httpx/stdlib): list <code>GET /api/tasks?tenant=pg</code>, get single, CAS update <code>PATCH /api/tasks/{id}?tenant=pg</code> with <code>expected_sync_version</code> (GET→echo <code>sync_version</code>→PATCH), event <code>POST /api/tasks/{id}/events</code> (event_type + actor). Status values <code>todo/running/done</code>. No auth (local, per infra owner).</li>
+        <li><code class="status">[x]</code> Deterministic CAS-conflict handling: stale version → refetch → retry (bounded <code>_MAX_CAS_RETRIES=3</code>, then raise <code>KboardConflictError</code>).</li>
+        <li><code class="status">[x]</code> Orchestrator hook: on state transition → persist to k-board + emit <code>kboard_event(env, event, task_id)</code> (created|claimed|status|comment|completed). <code>persist_transition</code> writes durably FIRST, then emits; wired by the Phase 9 manager loop, deliberately off the pure <code>apply()</code> path.</li>
+      </ul>
+
+      <h4>5.2 Testing Strategy</h4>
+      <p>Unit tests with a mocked k-board HTTP layer prove the CAS path including a stale-version conflict → refetch → retry.</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>.venv/bin/python -m pytest packages/fleet-orchestrator/tests -q -k kboard</code> — proves CAS update + stale-conflict retry + event post via green pytest against a mocked HTTP layer. (12 passed: happy-path version echo, refetch-retry asserting <code>patch_versions==[10,11]</code>, persistent-conflict raises, invalid-status pre-network guard, server-error, post_event, injected-client-not-closed, state mappings.)</li>
+        <li><code class="status">[x]</code> <code>! grep -rnE '(password|token|secret|bearer)' packages/fleet-orchestrator/src/fleet_orchestrator/kboard.py</code> — proves no secrets in the k-board client (only docstring prose "no secrets are ever logged" matches; task_id logging is fine).</li>
+      </ul>
+      <div class="loop">🔁 Do not exit until the CAS conflict→refetch→retry path is proven deterministic.</div>
+    </div>
+
+    <!-- ===== PHASE 6 ===== -->
+    <div class="phase">
+      <h3><code class="status">[x]</code> Phase 6: Observability — logging convention + audit gate <span class="pill">#10</span></h3>
+      <p><strong>Logging is written INTO each module as it's built (P1–P5 acceptance criterion), never bolted on here.</strong> Retrofitting logging after phases ship is exactly how you get silent gaps. This phase does NOT add logging late — it ships the shared <code>docs/logging.md</code> convention (so every phase logs the same way) and the enforcing audit gate that proves the earlier phases actually did it. It can start as soon as P1 lands; the convention doc precedes the code it governs.</p>
+
+      <h4>6.1 Logging convention</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>docs/logging.md</code>: the convention + the never-log list (secrets, tokens, webhook URLs, Discord member IDs, envelope payload contents — treat Discord as leaked). <code>task_id</code>/subjects/<code>kind</code>/<code>agent_id</code>/state/event/action are fine.</li>
+        <li><code class="status">[x]</code> Every orchestrator transition logs <em>which state, which event, which transition</em> (reconstructable decisions) — verified: all six <code>_perform</code> branches + both guards + <code>next_action</code> log. Every bus publish/subscribe/request/reply and subscriber ingress logs a sanitized line. No silent <code>except: pass</code>; log before every fallback.</li>
+        <li><code class="status">[x]</code> Optional machine-readable JSONL coordination trace <strong>explicitly deferred</strong> to issue #22 (owned follow-up, not a silent drop) — the loguru lines already carry the reconstructable decision context, so the trace is additive.</li>
+      </ul>
+
+      <h4>6.2 Testing Strategy</h4>
+      <p>A grep/secret-scan audit is a same-line regression <em>backstop</em> against forbidden patterns in log statements — it proves <em>absence</em> of the obvious leak, not <em>presence</em> of a log line at every branch. Coverage (a log line at every transition/send/receive/guard) is verified by per-phase trace + review — logging is a standing acceptance criterion caught in each phase's gauntlet — not by a single automated coverage gate (a grep cannot prove presence). See <code>docs/logging.md</code> for what the gate does and does not prove.</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>! grep -rnE 'logger\.(info|debug|warning|error).*(webhook|discord.*id|token|secret|bearer)' packages/*/src</code> — scans all three src trees incl. fleet-nats; clean. A <strong>same-line regression backstop</strong> (a secret laundered through an intermediate variable, or a multi-line logger call, is not caught); the real guarantee is structural — payloads/PII are never passed to a logger, enforced in per-phase review.</li>
+        <li><code class="status">[x]</code> <code>! grep -rnE 'except[^:]*:\s*pass' packages/*/src</code> — clean. Also a <strong>same-line backstop</strong> (the two-line <code>except:</code>/<code>pass</code> form is not caught by this regex); log-before-fallback is the enforced discipline, checked in per-phase review, and there are zero silent excepts in the tree today.</li>
+      </ul>
+      <div class="loop">🔁 Do not exit until the secret-scan is clean and — verified by trace, not by an automated coverage gate — every transition/send/receive/guard has a sanitized log line.</div>
+    </div>
+
+    <!-- ===== PHASE 7 ===== -->
+    <div class="phase">
+      <h3><code class="status">[wip]</code> Phase 7: Deploy the subscriber across the trio <span class="pill">#8</span></h3>
+      <p>Enable the subscriber on Nagatha (manager), Skippy + Bilby (workers) with the right identity, subjects, and role — through the front door, without regressing safety. <strong>Deploy model (maintainer-superseded 2026-07-07): self-provisioning</strong> — <code>scripts/install-agent.sh</code> lets each agent host install fleet-nats + fleet-subscriber when it needs them (idempotent venv at <code>/opt/fleet-bus</code>; source from <code>FLEET_BUS_SRC</code> / collab mount / checkout, or a tarball over ssh stdin for credential-less hosts). Installing is decoupled from <em>enabling</em>: the gateway enable stays the front-door procedure. Live enable on the trio still <code>[wip]</code>.</p>
+
+      <h4>7.1 Per-agent enable</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> Per-agent env config (reuse <code>fleet_nats.config</code>): <code>FLEET_NATS_URL/FLEET_AGENT_ID/FLEET_ENV</code> + <code>FLEET_ROLE</code> (worker|manager, default worker, unknown fails loud). Role selects lanes: workers subscribe dispatch/relay/wake/inbox; the manager's <em>adapter</em> subscribes inbox only — the task-keyed status/arbitrate lanes are owned by the orchestrator (per-task via <code>watch_worker_status</code>/<code>serve_arbitration</code>), not duplicated on the adapter as a broad wildcard. (Plan-vs-impl note: the plan said "Nagatha subscribes arbitrate/status"; those lanes are the orchestrator's, so the manager adapter stays minimal — same observability, no redundant wildcard.)</li>
+        <li><code class="status">[x]</code> <code>allow_bots</code> stays <strong>env-only</strong>, never <code>none</code> (min <code>mentions</code>; Nagatha may be <code>all</code>) — documented in <code>docs/runbook.md</code> as env-only, NOT in the config→env bridge. Config changes go through <code>restore-customizations --agent &lt;name&gt; --apply</code> (front door), with backup + ledger before any live change. Never raw ssh.</li>
+        <li><code class="status">[x]</code> <code>docs/runbook.md</code>: a reproducible enable procedure per agent (config keys table, front-door apply step, effective-state verification, rollback, update-survival).</li>
+        <li><code class="status">[wip]</code> <strong>Live enable on bilby-host/skippy-host/nagatha-host</strong> — not applied yet. The self-provisioning path (installer + tarball delivery + headless dummy) is <strong>proven end-to-end on fleet-hub fleet-hub</strong> (install → connect → dispatch → echo + done sentinel; <code>fleet-nats-dummy-hub</code> on <code>/connz</code>), so each agent host can install when it needs to; the gateway enable itself is captured as Phase-7 live evidence when applied.</li>
+      </ul>
+
+      <h4>7.2 Testing Strategy</h4>
+      <p>Verification is <strong>effective-state</strong>, not config-file assumption: probe the running agent to confirm the subscriber connected. (The <code>allow_bots ≠ none</code> half is a per-host gateway-config read done at apply time — a bus probe cannot see a gateway's allow_bots — covered by the runbook, not the bus probe.)</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>test -f docs/runbook.md &amp;&amp; grep -qi 'restore-customizations' docs/runbook.md &amp;&amp; grep -qi 'allow_bots' docs/runbook.md</code> — proves the enable procedure + safety note are documented. (Also gated: rollback + update-survival present.)</li>
+        <li><code class="status">[x]</code> <code>bash specs/probe-trio-subscribers.sh</code> — real effective-state probe: queries the NATS monitor <code>/connz</code> for each agent's <code>fleet-nats-&lt;agent&gt;</code> connection; exits 0 = all connected (PASS) or monitor unreachable (SKIP, off-network/not-deployed), 1 = reachable but an agent missing (real regression). Off-network it SKIPs honestly (never a false green). Host table: Bilby bilby-host, Skippy skippy-host, Nagatha nagatha-host — confirm live before deploy. <strong>Live green pending the deploy window.</strong></li>
+      </ul>
+      <div class="loop">🔁 Do not exit until an effective-state probe (not config assumption) confirms all three subscribers connected — captured at the maintainer-authorized deploy window.</div>
+    </div>
+
+    <!-- ===== PHASE 8 ===== -->
+    <div class="phase">
+      <h3><code class="status">[x]</code> Phase 8: Canonical-lib adapters + operator docs <span class="pill">#11 #12</span></h3>
+      <p>Make fleet-nats the one library all consumers import (thin adapters, no forks), and document the whole system so the next operator/agent can run it.</p>
+
+      <h4>8.1 Canonical lib (#11)</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>docs/consumers.md</code>: the adapter pattern with a minimal working example per consumer class (trio, OB #223, k-board, Dash, local dev — incl. a <code>direct(env, agent)</code> local-dev helper for the <code>direct.*</code> lane). "File a fleet-nats issue for a missing capability, never fork" stated as the rule.</li>
+        <li><code class="status">[x]</code> Subject-convention parity with the Dash TS contract (<code>{env}.{domain}.{...}</code>, <code>@example/core-nats</code>) stated in <code>consumers.md</code> and enforced structurally by the existing "no hand-formatted subjects" gate (every consumer builds via <code>fleet_nats.subjects</code>).</li>
+      </ul>
+
+      <h4>8.2 Operator docs (#12)</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>docs/architecture.md</code> + README: coordination architecture (Discord=display, NATS=control, k-board=truth, JetStream=infra), the subject tree with per-channel isolation, the state machine (with a full transition table), the subscriber mechanism, per-agent enable (cross-refs the runbook's effective-state probe, allow_bots never none), and a beat-by-beat human post → dispatch → relay → done → Discord walkthrough.</li>
+        <li><code class="status">[x]</code> <code>docs/runbook.md</code>: troubleshooting (bus unreachable, subscriber not connecting, relay not firing, CAS conflicts) added on top of the Phase-7 install/verify/rollback/update-survival.</li>
+      </ul>
+
+      <h4>8.3 Testing Strategy</h4>
+      <p>Docs are gated by presence + traceability greps and a no-secrets scan; a new reader must be able to trace one task end-to-end from the docs.</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>for f in docs/consumers.md docs/architecture.md docs/runbook.md; do test -f "$f" || exit 1; done</code> — proves the three docs exist.</li>
+        <li><code class="status">[x]</code> <code>grep -qi 'rollback' docs/runbook.md &amp;&amp; grep -qi 'update.survival' docs/runbook.md &amp;&amp; grep -qiE 'human post|dispatch.*relay.*done' docs/architecture.md</code> — proves rollback/update-survival + the traceable human→dispatch→relay→done narrative are present.</li>
+        <li><code class="status">[x]</code> <code>! grep -rnE '(webhook\.|discord\.com/api/webhooks|xoxb-|Bearer [A-Za-z0-9])' docs/</code> — proves no secrets in docs.</li>
+      </ul>
+      <div class="loop">🔁 Do not exit until all three docs exist, a reader can trace one task end-to-end, and the no-secrets scan is clean.</div>
+    </div>
+
+    <!-- ===== PHASE 9 ===== -->
+    <div class="phase">
+      <h3><code class="status">[wip]</code> Phase 9: End-to-end live trio proving run <span class="pill">#9</span></h3>
+      <p>The acceptance gate for the whole effort — the DAP replacement actually working against real agents. Unit tests are necessary but NOT sufficient (repeated fleet lesson).</p>
+      <figure>
+        <img src="fleet-bus-nats-coordination/phase9-e2e.png" alt="End-to-end timeline: human posts a task → dispatch → workers coordinate with a relay → both post to chat → done → record persisted.">
+        <figcaption>The proving scenario: human task → dispatch → relay → distinct agent voices in Discord → deterministic done → k-board persisted.</figcaption>
+      </figure>
+
+      <h4>9.1 The scenario</h4>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> Scripted moderate multi-step task driven onto the fleet-hub bus, deliberately having a worker skip a direct-mention so the orchestrator's relay must fire — <code>test_e2e_live.py::test_e2e_dispatch_relay_done_proving_run</code>, and a live evidence-capture run (2026-07-07T21:26 PST).</li>
+        <li><code class="status">[x]</code> Asserted <strong>live against fleet-hub + real k-board</strong> (with <em>simulated</em> worker publishers, not the real agents): dispatch reached BOTH workers (<code>[bilby, skippy]</code> on real per-channel subjects); the relay fired ≥1× to the un-mentioned peer (<code>dev.agent.relay.bilby</code>, orchestrator's own detector, carrying the missed context); the sentinel advanced the orchestrator to DONE (<code>outcome=completed</code>). The k-board durable path was exercised live too: <code>persist_transition</code> CAS-wrote <code>status=done</code> (v1832→1844) and emitted the <code>completed</code> kboard_event — a <em>mechanism check against live k-board</em> on a pre-existing card (<code>84f2a040</code>, already <code>done</code>), not a purpose-made proving task. <span class="pill">wip</span> The <em>real agents</em> coordinating + posting their <em>own words in Discord</em> (distinct voices), and a fresh proving task showing a genuine todo→done arc, are the deferred captured-evidence run against the deployed trio (maintainer live window); a bus test cannot see an agent's Discord post.</li>
+        <li><code class="status">[x]</code> Evidence captured (dispatch recipients, relay subject+target, orchestrator state/outcome, k-board task id + before/after status) to the temp workspace. Auto-skips cleanly off-network so CI stays green (runtime <code>skip</code> on fleet-hub unreachable).</li>
+      </ul>
+
+      <h4>9.2 Testing Strategy</h4>
+      <p>Runs against the live bus and real k-board; documented run with captured evidence. Off-network it auto-skips (mirrors the fleet-nats live gate).</p>
+      <ul class="checklist">
+        <li><code class="status">[x]</code> <code>FLEET_NATS_URL=nats://192.0.2.74:4222 .venv/bin/python -m pytest packages/fleet-orchestrator/tests -q -k e2e</code> — proves the full dispatch→relay→done coordination flow live (SKIP off-network keeps CI green). Ran live: <strong>1 passed</strong> against fleet-hub.</li>
+        <li><code class="status">[wip]</code> <code>test "$(curl -s 'https://kboard.example.internal/api/tasks/&lt;proving-task-id&gt;?tenant=pg' | jq -r .status)" = "done"</code> — the durable-record gate. What ran live: <code>persist_transition</code> CAS-wrote <code>status=done</code> through the shipped bridge and the curl returned <code>done</code> — but on a <strong>pre-existing card that was already <code>done</code></strong> (<code>84f2a040</code>), so that curl is a mechanism check, NOT proof that <em>this run</em> produced the done record (a curl on an already-done card is tautological). The honest version — a fresh proving task driven <code>todo→running→done</code> by the coordination run, then curled — is the deferred captured-evidence run against the deployed trio (maintainer live window).</li>
+      </ul>
+      <div class="loop">🔁 The effort is not proven until this runs against real agents with captured evidence — never mark done on "it compiles" or unit tests alone. <strong>Proven LIVE: the coordination loop over fleet-hub (dispatch→relay→done, simulated workers) and the persist_transition k-board mechanism. Remaining for the maintainer live window: real agents posting their own words in Discord, and a fresh proving task driven todo→done end-to-end.</strong></div>
+    </div>
+  </section>
+
+  <!-- ===== GLOBAL VALIDATION ===== -->
+  <section id="validation">
+    <h2>Validation Commands</h2>
+    <p>The plan checker <code>specs/fleet-bus-nats-coordination.verify.sh</code> implements every gate below and emits one exit code; the Build workflow sets markers from it (self-report is non-authoritative). Gates whose artifact isn't built yet report <code>SKIP</code> (not <code>PASS</code>) — a skip is an unbuilt gate, never a pass. Two per-phase live assertions are network-bound and live in their phase's Testing Strategy rather than this automated list: the Phase 9 k-board <code>status=done</code> curl (needs the concrete proving task-id) and the Phase 3 manual Discord own-words verification (needs a real agent). Those are captured-evidence gates, run by hand during their phase.</p>
+    <ul class="checklist">
+      <li><code class="status">[]</code> <code>test "$(gh pr view 2 --json state -q .state)" = "MERGED"</code> — Phase 0: foundation landed on main.</li>
+      <li><code class="status">[]</code> <code>for p in fleet-nats fleet-orchestrator fleet-subscriber; do d=packages/$p; [ -d "$d" ] || continue; ( cd "$d" &amp;&amp; .venv/bin/ruff check src/ tests/ &amp;&amp; .venv/bin/ruff format --check src/ tests/ &amp;&amp; .venv/bin/mypy src/ tests/ &amp;&amp; .venv/bin/python -m pytest tests/ -q ) || exit 1; done</code> — every package passes all four gates on src/ AND tests/.</li>
+      <li><code class="status">[]</code> <code>! grep -rnE '"(dev|prod)\.(agent|direct|human|kboard)\.' packages/*/src</code> — no hand-formatted subjects anywhere (all via <code>fleet_nats.subjects</code>).</li>
+      <li><code class="status">[]</code> <code>! grep -rnE 'except[^:]*:\s*pass' packages/*/src</code> — no silent excepts across the workspace.</li>
+      <li><code class="status">[]</code> <code>! grep -rnE '(discord\.com/api/webhooks|xoxb-|Bearer [A-Za-z0-9])' packages/ docs/</code> — no secrets/webhooks in code or docs (specs/ excluded: the plan quotes these patterns as never-log examples).</li>
+      <li><code class="status">[]</code> <code>bash specs/probe-trio-subscribers.sh</code> — effective-state: all three trio subscribers connected on the bus (Phase 7). Distinct exit codes: 0 PASS / 2 SKIP (monitor unreachable) / 1 FAIL. <code>allow_bots ≠ none</code> is a separate per-host gateway read (a bus probe cannot see a gateway's allow_bots) — see <code>docs/runbook.md</code>.</li>
+      <li><code class="status">[]</code> <code>FLEET_NATS_URL=nats://192.0.2.74:4222 .venv/bin/python -m pytest packages/fleet-orchestrator/tests -q -k e2e</code> — the live proving run passes-or-skips (Phase 9).</li>
+    </ul>
+    <div class="loop">🔁 The plan is complete only when <code>verify.sh</code> exits 0 with every box PASS. Markers come from the checker, not self-report. If a step is genuinely impossible, mark it <code>[f]</code> with the reason and the command that WOULD prove it — never mark a prose/unrun gate <code>[x]</code>.</div>
+  </section>
+
+  <!-- ===== QUESTIONABLES ===== -->
+  <section id="questionables">
+    <h2>Questionables</h2>
+    <figure>
+      <img src="fleet-bus-nats-coordination/questionables.png" alt="A glowing violet path forking into two diverging roads with an amber warning flag at the fork — an unresolved decision.">
+      <figcaption>The open decisions and load-bearing risks that could reshape the build.</figcaption>
+    </figure>
+
+    <details class="qa">
+      <summary>Subscriber home: separate <code>packages/fleet-subscriber/</code> uv package vs a Hermes-convention plugin dir?</summary>
+      <p class="qa-answer">Assumption: a separate uv workspace package keeps it gated by the same pre-push hook and importable, but Hermes plugins may have a required install layout/entry-point. Phase 3 must confirm the Hermes plugin discovery mechanism (how the agent venv loads it) before fixing the directory shape — the issue says "lives in this repo under a clearly-named dir, installed into the agent venv." Resolve at Phase 3 start; the plan's file list marks it as either/or.</p>
+    </details>
+    <details class="qa">
+      <summary>Where does the orchestrator run — inside Nagatha's process, or as its own service?</summary>
+      <p class="qa-answer">Issue #8 says "Nagatha = manager (subscribes to arbitrate/status, runs the orchestrator or talks to it)." Assumption for now: the orchestrator is a library the manager's subscriber drives in-process (simplest, one deploy). If it needs to outlive any single agent turn or coordinate across restarts, it becomes its own long-lived service on fleet-hub. Decide before Phase 7 deploy; does not block Phases 1–6 (the state machine + behaviors are process-agnostic).</p>
+    </details>
+    <details class="qa">
+      <summary>k-board task-id for the Phase 9 proving run and the exact fleet-hub agent host table.</summary>
+      <p class="qa-answer">The e2e gate curls a concrete <code>&lt;proving-task-id&gt;</code> and the probe targets Bilby bilby-host / Skippy skippy-host / Nagatha nagatha-host (per rtech-hermes CLAUDE.md). These must be confirmed live before Phase 7/9 — host tables drift. The plan leaves them as named placeholders to fill at execution, not assumptions to bake in.</p>
+    </details>
+    <details class="qa">
+      <summary>Do the trio agents already have <code>nats-py&gt;=2.15</code> on Python 3.13?</summary>
+      <p class="qa-answer">Issue #8 asserts yes (fleet standard, rtech-hermes #338) — "no venv work needed." Assumption carried; Phase 7 verifies via the effective-state probe rather than trusting the claim, since a missing dep would surface as a subscriber that never connects.</p>
+    </details>
+  </section>
+
+  <!-- ===== NOTES ===== -->
+  <section id="notes">
+    <h2>Notes</h2>
+
+    <h3>Dependency order (why the phases are sequenced this way)</h3>
+    <table>
+      <thead><tr><th>Phase</th><th>Issue</th><th>Depends on</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>PR #2</td><td>—</td><td>Nothing branches off an unmerged base; fleet-nats must be on main.</td></tr>
+        <tr><td>1</td><td>#3</td><td>0</td><td>Pure state machine — the provable heart before any wiring.</td></tr>
+        <tr><td>2</td><td>#4</td><td>1</td><td>Bus-wires the machine; needs the transitions to exist.</td></tr>
+        <tr><td>3</td><td>#5</td><td>0</td><td>Subscriber ingress; needs fleet-nats but is orthogonal to the orchestrator core.</td></tr>
+        <tr><td>4</td><td>#6</td><td>2, 3</td><td>Sentinel closes the loop between subscriber (emits done) and orchestrator (consumes it).</td></tr>
+        <tr><td>5</td><td>#7</td><td>2</td><td>k-board bridge hooks the orchestrator's transitions.</td></tr>
+        <tr><td>6</td><td>#10</td><td>1 (convention); audits 1–5</td><td>Convention doc precedes the code it governs (start after P1). Logging itself is written per-phase; this phase ships the shared convention + the audit gate that proves P1–P5 followed it — not a late retrofit.</td></tr>
+        <tr><td>7</td><td>#8</td><td>3, 4, 6</td><td>Can't deploy a subscriber that can't signal done or log; needs the trio hosts.</td></tr>
+        <tr><td>8</td><td>#11, #12</td><td>2–7</td><td>Docs/adapters describe the built system; write after it exists to avoid rot.</td></tr>
+        <tr><td>9</td><td>#9</td><td>ALL</td><td>The live proof — the acceptance gate for everything.</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Parallelizable:</strong> Phase 3 (subscriber, #5) has no dependency on Phases 1–2 beyond fleet-nats, so it can run concurrently with the orchestrator track. Phase 6 (logging) and Phase 8 (docs) are cross-cutting and can start as soon as their subjects exist.</p>
+
+    <h3>Grounded API surface (already shipped in fleet-nats — build on these, do not reinvent)</h3>
+    <pre><code><span class="tok-c"># transport</span>
+<span class="tok-k">from</span> fleet_nats <span class="tok-k">import</span> FleetBus, BusConfig, Envelope
+<span class="tok-k">from</span> fleet_nats <span class="tok-k">import</span> subjects
+
+cfg = BusConfig.from_env(<span class="tok-s">"nagatha"</span>)           <span class="tok-c"># FLEET_NATS_URL/FLEET_AGENT_ID/FLEET_ENV</span>
+<span class="tok-k">async with</span> FleetBus(cfg) <span class="tok-k">as</span> bus:
+    subj = subjects.agent_dispatch(cfg.env, <span class="tok-s">"skippy"</span>, channel=<span class="tok-s">"dash-dev"</span>)
+    <span class="tok-k">await</span> bus.publish(subj, env)             <span class="tok-c"># fire-and-forget</span>
+    reply = <span class="tok-k">await</span> bus.request(subjects.agent_arbitrate(cfg.env, <span class="tok-s">"who-goes-first"</span>), env)
+    <span class="tok-k">await</span> bus.subscribe(subjects.agent_relay(cfg.env, <span class="tok-s">"bilby"</span>), handler)
+
+<span class="tok-c"># envelope — caller supplies id + ts (deterministic under test)</span>
+env = Envelope.new(msg_id=uid, ts=iso_now, sender=<span class="tok-s">"nagatha"</span>,
+                   kind=<span class="tok-s">"dispatch"</span>, task_id=tid, payload={...})</code></pre>
+
+    <h3>Hard rules carried from the issues into every phase</h3>
+    <ul>
+      <li>Deterministic Python, <strong>no LLM</strong> in the orchestrator control path — explicit case-statements + try/except/finally.</li>
+      <li>Build subjects <strong>only</strong> via <code>fleet_nats.subjects</code>; never hand-format a subject string.</li>
+      <li>k-board = source of truth; NATS = delivery. State that matters survives in k-board.</li>
+      <li>Never log secrets/tokens/webhook URLs/Discord member IDs — treat Discord as leaked.</li>
+      <li>Live proof required for #5/#8/#9 — "it compiles" is never done.</li>
+      <li>Each phase is its own PR through <code>/pre-merge-gauntlet</code> (critical → swarm → cross-model → address all findings → merge; <strong>never auto-merge</strong>). On this repo the human maintainer clicks merge — report the PR as ready with the gauntlet complete and all findings closed; do not self-merge on the maintainer's behalf (matches Phase 0).</li>
+    </ul>
+
+    <h3>New dependencies (via <code>uv add</code>, per package)</h3>
+    <ul>
+      <li><code>fleet-orchestrator</code>: <code>fleet-nats</code> (workspace), <code>loguru</code>, <code>httpx</code> (k-board client) + <code>pytest</code>/<code>pytest-asyncio</code>/<code>ruff</code>/<code>mypy</code> dev.</li>
+      <li><code>fleet-subscriber</code>: <code>fleet-nats</code>, the Hermes plugin SDK (whatever <code>register_platform</code> lives in for v0.17), <code>loguru</code> + same dev set.</li>
+    </ul>
+
+    <figure>
+      <img src="fleet-bus-nats-coordination/subject-tree.png" alt="Four stacked isolated channel lanes, each a hierarchical subject tree, showing isolation between lanes.">
+      <figcaption>The four-lane subject tree — agent / direct / human / kboard — each independently observable, per-channel isolation under <code>agent.*</code>.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ===== AMENDMENTS ===== -->
+  <section id="amendments">
+    <h2>Amendments</h2>
+    <details class="amend">
+      <summary>2026-07-07T14:30:00-08:00 — Plan created</summary>
+      <p>Initial master plan spanning issues #3–#12 in dependency order, with PR #2 merge as Phase 0 (via <code>/pre-merge-gauntlet</code>) and full unit + live + e2e-proof rigor. Grounded in the shipped fleet-nats API and the issues' verified design constraints.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T17:02:00-08:00 — Addressed review (7 findings)</summary>
+      <p>(1) Generated + embedded all 8 figures (codex image-gen2, dark identity) and a real base64 favicon — no placeholders remain. (2) Shipped <code>specs/probe-trio-subscribers.sh</code> as an honest FAIL stub so the referenced gate resolves. (3) Wired the missing Phase-9 e2e gate into <code>verify.sh</code> and made the global-validation intro precise about the two network-bound in-phase gates. (4) Fixed the self-merge contradiction — Notes now matches Phase 0 (maintainer merges this repo). (6) Logging is a per-phase acceptance criterion in the universal gate; Phase 6 reframed as convention-doc + audit, not a late retrofit. (7) Dropped the stale single commit hash from metadata.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T18:20:00-08:00 — Phase 1 complete (#3)</summary>
+      <p>Built <code>packages/fleet-orchestrator/</code>: the pure DAP state machine. <code>state.py</code> — <code>State</code> (DISPATCHED→WORKING→RELAY_NEEDED→ARBITRATING→DONE), <code>EventKind</code>/<code>Event</code>, frozen <code>CoordinationSession</code> with an immutable <code>advanced_to()</code>. <code>transitions.py</code> — the total, pure <code>next_action(session, event) -&gt; Action</code> case-statement (the human-replacement relay path modelled explicitly as WORKING+HANDOFF_MISSING→RELAY_NEEDED); unhandled pairs degrade to a logged NOOP, never raise. Enums are <code>StrEnum</code> (ruff UP042). Sanitized loguru logging written into every transition as built (state/event/action/task_id — no secrets/member-ids). 63 unit tests over every (state × event) pair + totality/immutability/terminality; all four gates green (ruff/format/mypy --strict/pytest). Checker: 7 pass, 0 fail, 9 skip. Also fixed a checker defect: the Phase-9 e2e gate went falsely-FAIL (pytest exit 5 = "no tests collected") the moment the orchestrator venv existed but before the e2e test lands — now treated as SKIP until Phase 9.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T18:40:00-08:00 — Phase 2 complete (#4)</summary>
+      <p>Bus-wired the state machine. <code>behaviors.py</code> — <code>Orchestrator</code> over <code>FleetBus</code> with an injected <code>IdClock</code> (deterministic envelope ids/ts under test): dispatch fans out to <code>session.workers</code> (per-channel subjects) or a single-worker hint; relay publishes <code>session.relay_context</code> to the un-mentioned peer; <code>wake_worker()</code> nudges a quiet worker (public API, no state change); arbitrate is served request/reply via a new <code>FleetBus.raw_subscribe</code> + a deterministic <code>decide_arbitration</code>. <code>detect.py</code> — pure missing-handoff detector (relay to the sorted-first un-mentioned peer) + arbitration policy, unit-testable without a live agent. All subjects via <code>fleet_nats.subjects</code>; sanitized loguru on every publish/subscribe. Added <code>py.typed</code> to both packages so <code>mypy --strict</code> sees fleet-nats types. 85 tests incl a real dispatch→relay + arbitrate round-trip against fleet-hub (auto-skips off-network); both packages green on all four gates; checker 7/0/9. critical-mode caught two real bugs pre-PR: relay was dropping the missed context (payload built from the empty <code>action.context</code> instead of <code>session.relay_context</code>), and wake was reachable only via a private method (promoted to <code>wake_worker()</code>). Deferred to Phase 9: the <code>@peer</code> mention detector is intentionally simple; per-topic arbitration needs a wildcard responder for dynamic proving-run topics.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T18:55:00-08:00 — Phase 3 complete (#5)</summary>
+      <p>Built <code>packages/fleet-subscriber/</code>: the per-agent Hermes NATS ingress plugin. API source-verified against canonical Hermes <strong>v0.17.0</strong> (<code>ai-agents/platforms/hermes/v0_17_0</code>) — resolving the plan's Phase-3 Questionable — before writing a line. <code>hermes.py</code> — the gateway import seam (host-only imports funnelled through one <code>load_gateway()</code>; a <code>GatewayApi</code> Protocol lets tests inject a stub). <code>mapping.py</code> — pure <code>envelope_to_message()</code> (gateway-free, fully unit-tested). <code>adapter.py</code> — <code>NatsAdapter(BasePlatformAdapter)</code> built against the loaded API: <code>connect()</code> subscribes to this agent's dispatch/relay/wake/inbox lanes via <code>fleet_nats.subjects</code>; each envelope is forged into <code>MessageEvent(internal=True)</code> and handed to <code>handle_message()</code>; the agent's own-words reply publishes back out via <code>send()</code>. Plugin discovery via <code>plugin.yaml</code> + <code>register()</code>; the <code>register_platform</code> lever, never the standalone-pipeline dead-end. 15 tests (mapping + adapter against a gateway stub + fake bus); all four gates green; <code>docs/subscriber-live-verify.md</code> documents the live procedure (evidence capture pending Phase 7 deploy).</p>
+      <p><strong>Plan-vs-source correction:</strong> the plan said "await <code>gateway._handle_message(event)</code> (inline, not fire-and-forget)". Source verification showed the real injection point is <code>adapter.handle_message(event)</code>, which returns <code>None</code> and spawns the turn as a background task (base.py:3926) — the reply comes back out via the adapter's <code>send()</code>, not inline. The implementation follows the verified contract. <strong>critical-mode</strong> caught a serious reply-routing bug pre-PR: <code>send()</code> keyed the reply on the Discord channel (<code>agent_status(env, chat_id)</code>) instead of the task, so the orchestrator (watching <code>agent_status(env, task_id)</code>) would never receive the agent's words — fixed with a channel→task_id correlation map + regression test; also fixed a malformed empty-<code>ts</code> reply envelope. <strong>Checker fix:</strong> the Phase-7 trio probe was gated on <code>packages/fleet-subscriber/src</code>, so it flipped from SKIP to a false FAIL the moment Phase 3 (subscriber <em>built</em>) landed — re-gated on <code>docs/runbook.md</code> (the Phase-7 <em>deploy</em> artifact) so it SKIPs until the subscriber is actually deployed. Checker: 10 pass, 0 fail, 6 skip.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T19:15:00-08:00 — Phase 4 complete (#6)</summary>
+      <p>The completion sentinel — the deterministic, un-spoofable "turn is done" signal. The <code>kind="done"</code> wire shape (<code>payload={task_id, outcome}</code>) lives once in the shared transport layer (<code>fleet_nats.sentinel.done_envelope</code>), so the emitter and consumer cannot drift. <strong>Emit</strong> (subscriber): an agent ends a turn with a fixed <code>[[done]]</code> / <code>[[done:outcome]]</code> trailer (pure, end-anchored <code>parse_completion</code>); the subscriber strips it from the visible reply and publishes the <code>done</code> sentinel on the task's status subject, then frees the correlation. <strong>Consume</strong> (orchestrator): <code>watch_worker_status</code> checks <code>parse_done</code> <em>first</em> (a done envelope has no reply text — it must not run through missing-handoff detection) and advances <code>WORKING → DONE</code>. 171 tests across the three packages, incl a live <code>done</code>-sentinel round-trip against fleet-hub that advances the orchestrator to DONE. Checker 10/0/6. critical-mode fix pre-PR: the subscriber originally hand-rolled the <code>done</code> envelope dict (drift risk vs the orchestrator's parse) — moved the shape + builder to <code>fleet_nats.sentinel</code> (the shared layer both import; correct dependency direction, not subscriber→orchestrator), added a wire round-trip test. Documented the <code>[[done]]</code> convention + the trusted-agent/NATS-ACL trust boundary in <code>docs/subscriber-live-verify.md</code>.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T19:55:00-08:00 — Phase 5 complete (#7)</summary>
+      <p>The k-board bridge — Postgres (tenant <code>pg</code>) becomes the durable source of truth; NATS stays delivery-only. <code>kboard.py</code> — a CAS-safe async <code>httpx</code> client: <code>list_tasks</code>/<code>get_task</code>, <code>update_status</code> (GET current <code>sync_version</code> → PATCH with <code>expected_sync_version</code> → bounded refetch-retry on 409/412, <code>_MAX_CAS_RETRIES=3</code> then raise <code>KboardConflictError</code>), <code>post_event</code>; plus <code>status_for_state</code>/<code>event_for_state</code> mappings (the five coordination states collapse to k-board's <code>todo/running/done</code>; the claim moment is observable on the <em>event</em> stream, not as an intermediate status). <code>Orchestrator.persist_transition</code> writes the durable CAS status <strong>first</strong>, then emits the matching <code>kboard_event</code> on the bus — so an emit failure leaves the record authoritative, never a torn state; it is the Phase-9 manager-loop bridge, deliberately off the pure <code>apply()</code> path. 115 tests across the three packages (12 kboard-specific: happy-path version echo, refetch-retry asserting <code>patch_versions==[10,11]</code>, persistent-conflict raises, invalid-status pre-network guard, server-error, post_event, injected-client-not-closed, state mappings, plus a strict durable-before-emit ordering assertion <code>timeline==["GET","PATCH","EMIT"]</code>). All four gates green; checker 10/0/6.</p>
+      <p><strong>Gauntlet (critical-mode → review-swarm → Codex):</strong> critical-mode surfaced three doc-only clarifications (the persist bridge is an intentional Phase-9 seam; CAS correctness depends on the server honoring <code>expected_sync_version</code>, verified live in Phase 7; the DISPATCHED→running status collapse is deliberate) — all folded into docstrings. review-swarm caught two real defects: (1) <strong>the entire <code>test_kboard.py</code> suite was missing</strong> (lost across a context compaction) — written (12 tests covering every CAS/retry/error-mapping path); (2) the <code>update_status</code> success log printed the loop <em>attempt</em> counter as the new version — fixed to log the actual <code>updated.sync_version</code>. Codex cross-review (ran the <code>codex</code> CLI + independent trace) confirmed CAS-safety, ownership, and secret-free logging, refuted three of its own mypy false-positives, and flagged one log-ordering nit: <code>persist_transition</code> logged "persisted+emitted" <em>before</em> the publish — split into a post-persist and a post-emit line so a log never claims an action a later exception prevented. Live proof: the shipped <code>KboardClient</code> updated the real bridge card (v1206→v1832, single CAS attempt), so the server honors <code>expected_sync_version</code> — the Phase-7 verification item, satisfied early.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T20:10:00-08:00 — Phase 6 complete (#10)</summary>
+      <p>Observability convention + audit gate. This phase does NOT add logging late — logging was written into each module as built (a P1–P5 acceptance criterion). It ships <code>docs/logging.md</code>: the shared convention (loguru, <code>module.operation | key={}</code> format, <code>{}</code>-binding never f-strings), the never-log list (secrets/tokens/webhook URLs/Discord member IDs/envelope payload contents — treat Discord as leaked), the safe-to-log list (<code>task_id</code>/subjects/<code>kind</code>/<code>agent_id</code>/state/event/action), the five required log points (transition/bus-op/ingress/failure-fallback/guard), and levels. Plus the enforcing audit wired into the checker: a same-line secret/webhook/<code>discord…id</code> backstop grep over <strong>all three</strong> <code>src</code> trees (stricter scope than the plan's orchestrator+subscriber-only — fleet-nats is where the bus publish/subscribe lines live) and the existing same-line no-silent-except scan; both clean. Both are regression backstops, not exhaustive proofs — the real guarantees (no PII in logs, log-before-fallback) are structural and enforced in per-phase review. Coverage verified by <em>trace</em>, not an automated gate: all six <code>_perform</code> branches + both guards + <code>next_action</code> + every bus op log a sanitized line. Checker 12/0/6.</p>
+      <p><strong>Gauntlet:</strong> critical-mode kept the doc <em>honest</em> — the grep is a same-line regression <em>backstop</em> (a secret laundered through a variable defeats it), so the doc now states the real guarantee is structural (payloads/PII never passed to a logger, enforced in per-phase review), and the "every transition logs" claim is framed as the convention P1–P5 meet + gauntlet-enforce, not a coverage gate a grep can prove. Confirmed no self-reference hazard (the Phase-6 grep scans <code>packages/*/src</code>, not <code>docs/</code>; the code+docs secret gate needs <code>Bearer &lt;token-char&gt;</code>, which the doc's prose doesn't match). The optional JSONL coordination trace is deferred to an owned follow-up (<strong>issue #22</strong>), recorded on #10 — additive, not a silent scope drop.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T20:30:00-08:00 — Phase 7 artifacts complete (#8, live deferred)</summary>
+      <p>The deploy artifacts for enabling the subscriber across the trio — <strong>built + merged; the live enable itself deferred to a maintainer-authorized batch window</strong> (per the maintainer: the trio should open once for a batch of gated changes, not per-poke; no agent self-modification). <strong>Role-aware subscription</strong> (<code>role.py</code>): <code>SubscriberRole</code> (worker|manager) from <code>FLEET_ROLE</code>, defaulting to the least-capable WORKER and failing loud on an unknown value; <code>lanes_for_role</code> gives workers dispatch/relay/wake/inbox and the manager inbox-only. The adapter's <code>connect()</code> is now role-driven (a lane-name→<code>fleet_nats.subjects</code>-builder map, still never hand-formatted). <strong>Design decision:</strong> the manager's adapter does NOT subscribe the task-keyed status/arbitrate lanes (their ids are unknown at connect-time and the orchestrator already owns them per-task) — so the manager adapter stays minimal instead of racing the orchestrator with a broad wildcard; recorded as a plan-vs-impl note. <code>docs/runbook.md</code>: per-agent config table, front-door apply (<code>restore-customizations --agent</code>, backup+ledger first, never raw ssh), the env-only/never-<code>none</code> <code>allow_bots</code> rule, effective-state verification, rollback, and update-survival. <code>specs/probe-trio-subscribers.sh</code> is now a real effective-state probe (queries the NATS monitor <code>/connz</code> for each <code>fleet-nats-&lt;agent&gt;</code> connection; PASS all-connected / SKIP monitor-unreachable / FAIL reachable-but-missing — never a false green off-network). 38 subscriber tests (incl. 7 role-config + worker/manager connect-lane tests); all four gates green on all three packages; checker 14/0/4. Live markers stay <code>[wip]</code> until the deploy window captures real probe evidence.</p>
+      <p><strong>Gauntlet (critical-mode → swarm → Codex):</strong> critical-mode + Codex converged on verification-layer honesty defects (the Python was clean). Fixed the important one — the <strong>checker scored the probe as PASS on an off-network SKIP</strong> (a false green): the probe now exits a <em>distinct</em> code 2 for SKIP and the checker maps 0→PASS / 2→SKIP / 1→FAIL, so an unverified probe never tallies as pass (checker went 15/0/3 → 14/0/4 as the bogus PASS became an honest SKIP). Runbook accuracy: rollback + verification no longer claim the bus probe verifies <code>allow_bots</code> (it can't — that's a separate per-host gateway read); the manager role-check now uses the adapter's per-lane <code>connect</code> log, not <code>/connz</code> (which omits subscription subjects without <code>?subs=1</code>); a note pins <code>FLEET_NATS_NAME</code> unset so the probe's name-grep holds. Probe hardening: the grep is anchored to the <code>"name":"fleet-nats-&lt;agent&gt;"</code> field so a sibling like <code>…-skippy2</code> or an unrelated field can't false-match. The silent manager→worker default is documented + caught by the effective-role log check. Also recorded the P7/P9 boundary: enabling the subscriber makes Nagatha's ingress live but not her coordination (status/arbitrate handling is the Phase-9 orchestrator loop).</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T21:10:00-08:00 — Phase 8 complete (#11 #12)</summary>
+      <p>The canonical-lib adapter pattern + the operator docs. <code>docs/consumers.md</code> (#11): fleet-nats is the one library every system imports as a <strong>thin adapter</strong> — the public surface (<code>FleetBus</code>/<code>Envelope</code>/<code>subjects</code>), the four-layer subject tree with the Dash <code>{env}.{domain}.{...}</code> parity stated, and a minimal working example per consumer class (trio, Open Brain #223, k-board, Dash TS, and a local-dev <code>direct(env, agent)</code> helper for the <code>direct.*</code> lane). The "file a fleet-nats issue for a missing capability, never fork" rule is explicit; Dash parity is enforced structurally by the existing no-hand-formatted-subjects gate. <code>docs/architecture.md</code> (#12): the end-to-end system — four planes (Discord display / NATS control plane / k-board record / JetStream infra), the subject tree, the five-state <code>next_action</code> machine with a full transition table (incl. the two guard→NOOP rows), the <code>register_platform</code> → <code>MessageEvent(internal=True)</code> → <code>send()</code> → done-sentinel subscriber mechanism, and a beat-by-beat <strong>human post → dispatch → relay → done → Discord</strong> walkthrough (the traceability gate). <code>docs/runbook.md</code> gained a troubleshooting section (bus unreachable / subscriber not connecting / relay not firing / CAS conflicts) on top of the Phase-7 enable/rollback/update-survival. README now indexes all four docs. Every architecture claim was traced to source (subjects/state/transitions/behaviors/adapter/sentinel/kboard); no invented APIs; no secrets. Checker 16/0/2 (the 2 skips are the off-network trio probe + the Phase-9 e2e).</p>
+      <p><strong>Gauntlet (critical-mode → swarm → Codex):</strong> the swarm's independent trace found the docs API-accurate (every <code>Envelope.new</code>/<code>subjects.*</code>/<code>FleetBus</code> call real, every troubleshooting log line grep-confirmed in source, every transition-table row matching <code>next_action</code>). critical-mode + Codex added precision fixes to the walkthrough prose: (1) a real factual error — the doc said "fleet <em>JetStream</em> nodes buttress the Dash mesh"; source (CLAUDE.md) says "fleet <strong>JS</strong> nodes" (the Dash mesh's JS/TS language) — the parity is the subject <em>convention</em>, JetStream is core-only infra here (corrected both occurrences); (2) the <code>RELAY_NEEDED + HANDOFF_MISSING</code> transition row now shows its <em>guard</em> (target present → RELAY, else NOOP) to match the WORKING rows; (3) <code>_slug</code> no longer claimed "always subject-safe" (it normalizes dots/spaces/case, does not strip NATS wildcards — a naming convention, not an injection guard); (4) the "back to Discord" beat now states the precise boundary — the subscriber <code>send()</code> publishes to <code>agent_status</code>, and each agent's own Hermes gateway surfaces it in Discord (fleet-bus's job ends at the bus); (5) "strict ordering" softened — the relay beat is conditional and DONE arrives from any non-terminal state.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T21:30:00-08:00 — Phase 9 proven live: coordination + durable-record halves (#9)</summary>
+      <p>The acceptance gate's automatable half — and it <strong>ran live</strong>, not skipped. <code>test_e2e_live.py</code> scripts the full coordination closed loop over the real fleet-hub bus (dispatch fans to BOTH workers → a worker finishes without handing off → the orchestrator's own <code>detect_missing_handoff</code> fires the relay to the un-mentioned peer → a completion sentinel advances the orchestrator to DONE), runtime-skipping when fleet-hub is unreachable. <strong>Scope honesty:</strong> the "workers" are pytest publishers, NOT the real Skippy/Bilby agents — so this proves the coordination brain works on live transport (the load-bearing half), but it is an <em>integration test with simulated workers</em>, not the full real-agent proving run. fleet-hub and k-board (<code>kboard.example.internal</code>, tenant pg) were both reachable, so a live evidence-capture run also exercised the durable path through the shipped bridge: <code>persist_transition</code> CAS-wrote k-board <code>status=done</code> (v1832→v1844) and emitted <code>dev.kboard.task.completed.…</code>, and the plan's curl gate confirmed <code>status=done</code> — a mechanism check against live k-board on a pre-existing card (not a purpose-made proving task). Checker <strong>17/0/1</strong> on-network (e2e live PASS; the one SKIP is the trio probe = deferred Phase-7 enable). <strong>Gauntlet fix (critical-mode):</strong> the added runtime-skipping e2e test <em>regressed</em> the checker into a false green — an off-network skip returns pytest exit 0, identical to a real pass, so the checker (exit-0→PASS) would have scored the acceptance gate green having proven nothing. Fixed the same way as the Phase-7 probe: the checker now parses the pytest outcome (<code>N passed</code>→PASS, <code>N skipped</code>→SKIP, exit 5→SKIP), so an off-network e2e is honestly SKIP, never a false PASS. <strong>Remaining for #9:</strong> the real agents coordinating + posting their <em>own words in Discord</em>, and a fresh proving task showing a genuine todo→done arc — the deferred captured-evidence run against the deployed trio (maintainer live window). Coordination + durable-record mechanism: <em>proven live</em>. Real-agent + Discord half: pending that window. Marker stays <code>[wip]</code>.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T22:20:00-08:00 — Self-provisioning deploy artifacts + fleet-hub dummy proof; monitor-port fix</summary>
+      <p><strong>Deploy model superseded by the maintainer:</strong> instead of a single batch window hand-applying to the trio, "make all the things and allow the agents to install what they need when they need it." Shipped <code>scripts/install-agent.sh</code> — an idempotent, non-interactive self-provisioning installer (uv venv at <code>$FLEET_BUS_HOME</code>, default <code>/opt/fleet-bus</code>; editable installs of fleet-nats + fleet-subscriber; import-verified at the end; source resolution <code>FLEET_BUS_SRC</code> → collab mount → own checkout, with tarball-over-ssh-stdin delivery for hosts with no GitHub credentials or collab mount — fleet-hub has neither). Fixed mid-test: the synced tree must carry the root <code>pyproject.toml</code> or the packages' <code>fleet-nats = { workspace = true }</code> source cannot resolve. Shipped <code>fleet_subscriber.dummy</code> — a headless, gateway-free echo subscriber (<code>python -m fleet_subscriber.dummy</code>) that subscribes the SAME role lanes as the real adapter via the same lane→subject map, echoes every envelope as a <code>status</code> reply and completes a <code>dispatch</code> with the real shared done sentinel; 6 unit tests; runbook documents both (install ≠ enable stated explicitly). <strong>Proven live twice:</strong> locally (installer → installed venv → dummy-local → Mac round-trip PASS) and on fleet-hub fleet-hub (tarball over ssh stdin → installer → <code>dummy-hub</code> running → <code>fleet-nats-dummy-hub</code> visible on the hub's own <code>/connz</code> → dispatch round-trip from the Mac: echo + <code>done outcome=completed</code>).</p>
+      <p><strong>Monitor-port discovery (real bug):</strong> fleet-hub binds 8222 as its <strong>WebSocket</strong> listener; the HTTP monitor is <code>http_port: 8223</code>. The probe's 8222 default got HTTP 400 from the ws handshake, which <code>curl -f</code> treats as failure → the probe could NEVER run — a permanent false SKIP masquerading as "off-network." Fixed the default to 8223 (probe + runbook). With the monitor now genuinely reachable, the probe honestly FAILs while the trio is un-enabled — which is the <em>declared</em> plan state (Phase 7 <code>[wip]</code>), not a regression. The checker now maps a probe FAIL to <code>fail</code> only when the plan HTML claims <code>[x] Phase 7</code> (claim-vs-reality mismatch); while the plan says <code>[wip]</code> it reports SKIP with the reason. Overstating the marker is exactly what the gate catches. Checker <strong>17/0/1</strong> on-network — now with the e2e live gate an actual PASS and the one SKIP carrying its true cause.</p>
+      <p><strong>Latent no-dispatch-delivered bug (found by the dummy exercise, fixed):</strong> the orchestrator publishes dispatches on the PER-CHANNEL subject (<code>{env}.agent.{channel}.dispatch.{worker}</code> — <code>session.channel</code> is always set), but the adapter's dispatch lane subscribed only the bare form (<code>{env}.agent.dispatch.{worker}</code>). NATS matches per-token — the forms have different token counts — so at live enable the trio would have received <em>zero</em> coordinated dispatches. Every earlier test was self-consistently on one form, which is why nothing caught it. Fixed in the owning boundaries: <code>subjects.agent_dispatch_wildcard</code> (<code>{env}.agent.*.dispatch.{worker}</code>) + the adapter/dummy lane map now subscribes BOTH forms per lane (<code>_LANE_BUILDERS</code> values are builder tuples). Regression-tested (a minimal per-token NATS matcher proves the wildcard matches the publish form and that the bare form alone cannot), docs corrected (architecture subject table, live-verify), and re-proven live end-to-end: the driver now publishes the per-channel form and the round-trip passes both locally and against <code>dummy-hub</code> on fleet-hub.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-07T22:55:00-08:00 — Trio hosts provisioned; enable assigned to the maintainer window</summary>
+      <p>PR #31 merged (self-provisioning installer + dummy + dispatch-subject fix + monitor-port fix; full gauntlet incl. Fable cross-review which re-proved the dispatch fix live — one per-form delivery, no double-turn). <strong>All three trio hosts are now provisioned:</strong> uv installed where missing (Skippy skippy-host, Nagatha nagatha-host), and <code>install-agent.sh</code> ran clean on Bilby (192.0.2.71), Skippy (192.0.2.111), Nagatha (192.0.2.77) — fleet-nats + fleet-subscriber import-verified in <code>/opt/fleet-bus/.venv</code> on each. <strong>The remaining enable</strong> (gateway plugin registration + <code>FLEET_*</code> env + <code>allow_bots</code> + restart) is <strong>explicitly assigned to the maintainer's authorized window</strong> (maintainer's decision 2026-07-07, batched with the pending rtech-hermes changes): the sanctioned front door lives in the rtech-hermes customizations repo (currently carrying unrelated in-flight work), and the restart interrupts live agents. Everything is staged so the window is config+restart only; the probe (now on the correct monitor port) flips Phase 7 the moment all three connect. Phase 9's real-agent Discord half follows the same window.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-08T01:13:38-04:00 — Verification pass; fixed live-test subject isolation</summary>
+      <p>Re-vetted the spec and checker before using this plan as the baseline for the follow-on reliability-governance work. The checker is green for regression state (<code>17 pass, 0 fail, 1 skip</code>), with the single skip correctly representing the un-enabled trio effective-state probe while Phase 7 remains <code>[wip]</code>. During the audit, a direct live e2e run was contaminated by a concurrent focused pytest lane because both tests used fixed synthetic subjects (<code>pytest-skippy</code>, <code>pytest-bilby</code>, <code>e2e-proving-task</code>) on the shared fleet-hub bus. Fixed the live tests at the test boundary by adding unique run suffixes to synthetic channels, task ids, workers, manager ids, and arbitration topics. Re-ran the contamination shape successfully, then verified <code>ruff check</code>, <code>ruff format --check</code>, <code>mypy</code>, all <code>fleet-orchestrator</code> tests (<code>127 passed</code>), and the plan checker.</p>
+    </details>
+    <details class="amend">
+      <summary>2026-07-08T12:30:00-04:00 — Plan closed out; hardening continues in the reliability/governance plan</summary>
+      <p><strong>Closeout.</strong> This plan's build phases are complete and merged: the fleet-nats
+      foundation (envelope/subjects/bus), the subscriber adapter (dispatch/relay/wake/inbox lanes,
+      heartbeat, dedup, dead-letter), the deterministic orchestrator (five-state machine, detectors,
+      arbitration, k-board bridge, JSONL trace), self-provisioning deploy artifacts, and the live
+      round-trips proven against the fleet NATS server (fleet-hub). The plan is published at
+      <code>collab/sites/fleet-bus/plans/</code>.</p>
+      <p><strong>Turn-key enable</strong> remains the maintainer's authorized window (trio enable,
+      rtech-hermes #464): gateway plugin registration + <code>FLEET_*</code> env per the config matrix
+      (rtech-hermes #467) + restart. Everything repo-side is staged; the Phase 7 probe flips the moment
+      the trio connects. Nothing in this repo blocks it.</p>
+      <p><strong>Continuation.</strong> Reliability + governance hardening — reconnect semantics,
+      at-most-once transport + idempotent-consumer dedup + dead-letter, offline escalation ladder, token-cost feed, budget governor +
+      single narrator, scorekeeper/decider, the parked dashboard, and the k-board subject registry —
+      lives in the companion plan:
+      <a href="fleet-bus-reliability-governance.html">fleet-bus-reliability-governance</a>.</p>
+    </details>
+  </section>
+
+</main>
+</body>
+</html>

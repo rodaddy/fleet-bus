@@ -1,0 +1,35 @@
+# Hermes plugin manifest for the fleet NATS subscriber.
+#
+# Discovery: the Hermes gateway loads plugins from a directory containing a
+# plugin.yaml + an __init__.py exporting `register`. On an agent host this
+# package is installed into ~/.hermes/hermes-agent/plugins/ (or referenced via a
+# plugin dir), and its register() calls ctx.register_platform(name="nats", ...).
+# Verified against canonical Hermes v0.17.0 (plugins/platforms/discord/plugin.yaml).
+name: fleet-nats-subscriber
+label: NATS
+kind: platform
+version: 0.1.0
+description: >-
+  Fleet NATS subscriber — turns an inbound fleet-bus coordination envelope into a
+  real agent turn whose own words post back out. Uses the register_platform lever.
+author: fleet-bus
+requires_env:
+  - name: FLEET_NATS_URL
+    description: "The fleet NATS server URL (e.g. nats://192.0.2.74:4222)."
+    prompt: "NATS URL"
+    password: false
+  - name: FLEET_AGENT_ID
+    description: "This agent's identity — the subject namespace it subscribes to."
+    prompt: "Agent id"
+    password: false
+optional_env:
+  - name: FLEET_ENV
+    description: "Environment prefix for subjects (dev or prod). Defaults to dev."
+    prompt: "Env"
+    password: false
+  - name: FLEET_ROLE
+    description: >-
+      Subscriber role (worker or manager; defaults to worker). Managers also get
+      the fleet_send tool to initiate bus conversations with workers.
+    prompt: "Role"
+    password: false

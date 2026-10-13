@@ -1,0 +1,8 @@
+{"action": "dispatch", "subject": "dev.kboard.task.created.t_grad51783562393", "target": "skippy", "task_id": "t_grad51783562393", "ts": "2026-07-09T02:00:09.148173+00:00"}
+{"action": "dispatch", "subject": "dev.agent.dispatch.skippy", "target": "skippy", "task_id": "t_grad51783562393", "ts": "2026-07-09T02:00:09.199679+00:00"}
+{"action": "dispatch", "subject": "dev.agent.dispatch.bilby", "target": "bilby", "task_id": "t_grad51783562393", "ts": "2026-07-09T02:00:09.201000+00:00"}
+{"action": "arbitrate", "event": "arbitrate_requested", "state": "arbitrating", "task_id": "t_grad51783562393", "ts": "2026-07-09T02:00:12.976249+00:00"}
+{"action": "relay", "subject": "dev.agent.relay.skippy", "target": "skippy", "task_id": "t_grad51783562393", "ts": "2026-07-09T02:00:12.977438+00:00"}
+{"action": "wake", "subject": "dev.agent.wake.skippy", "target": "skippy", "task_id": "t_grad51783562393", "ts": "2026-07-09T02:00:29.079468+00:00"}
+{"action": "decide", "target": "bilby", "task_id": "t_grad51783562393", "ts": "2026-07-09T02:00:36.500000+00:00"}
+{"action": "complete", "state": "done", "task_id": "t_grad51783562393", "ts": "2026-07-09T02:01:14.039736+00:00"}

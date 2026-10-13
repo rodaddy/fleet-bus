@@ -1,0 +1,43 @@
+[project]
+name = "fleet-core"
+version = "0.1.0"
+description = "Base fleet-bus client package: typed spec, config, logging, and transport boundaries."
+# Floor 3.13 (fleet standard, rtech-hermes #338), matching fleet-nats.
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2",
+    # The fleet's one logging dependency (docs/logging.md), matching the
+    # fleet-nats floor. Required by fleet_core.logging.configure_logging.
+    "loguru>=0.7",
+    "nats-py[nkeys]>=2.15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fleet_core"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

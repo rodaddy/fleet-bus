@@ -1,0 +1,18 @@
+[project]
+name = "fleet-bus"
+version = "0.1.0"
+description = "Fleet message + coordination bus — canonical NATS transport and DAP coordination for the agent fleet, OB, and k-board."
+readme = "README.md"
+requires-python = ">=3.13"
+authors = [{ name = "Rico Rojas", email = "rickrojas@gmail.com" }]
+# The release builder installs this locked build backend before it installs the
+# four local packages with --no-build-isolation.  Keeping it in the root lock
+# closes the otherwise implicit build-time network-resolution path.
+dependencies = ["hatchling>=1.28,<2"]
+
+# This repo is a home for fleet bus packages. The primary package is
+# packages/fleet-nats/ (the shared NATS library). Additional packages
+# (the coordination orchestrator, etc.) live under packages/ alongside it.
+
+[tool.uv.workspace]
+members = ["packages/*"]

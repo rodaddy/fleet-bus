@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+dist/
+*.egg-info/
+_reports/
+
+# Added by ggshield
+.cache_ggshield
+
+# Release identity receipt, written by a deploy — never committed (#225).
+# install-agent.sh stamps this at the tree root so the runtime can report a real
+# package_version. In the in-place install path (FLEET_BUS_SRC == the install
+# dest) that root IS a git checkout, so without this entry the file lands as an
+# untracked change and deploy-hub-release.sh's `--untracked-files=all`
+# cleanliness gate ("FLEET_BUS_SRC must be clean at DEPLOY_SHA") fails a later
+# hub deploy from that same checkout.
+.fleet-release-sha
+
+# qmd is retired here (dev#510); the allowlist is ~/.config/qmd/development.yml
+.qmd/

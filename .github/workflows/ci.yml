@@ -1,0 +1,155 @@
+name: CI
+
+# Server-side gate. Mirrors .githooks/pre-push (ruff check + ruff format --check +
+# mypy + pytest on src/ AND tests/ for every package under packages/, plus the
+# docs-drift check). Hooks can be bypassed (--no-verify) or skipped (never ran
+# install-hooks.sh); CI cannot. Per docs/coding-standards.md "CI also runs this
+# check — hooks can be bypassed, CI cannot."
+#
+# Secret scanning: the hook's ggshield step is covered server-side by the
+# GitGuardian PR check (org-wide, per coding-standards.md line 252), so it is not
+# duplicated here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Minimal scope — never rely on default token permissions (coding-standards.md).
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: lint · format · types · tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
+
+      - name: Set up Python 3.13
+        run: uv python install 3.13
+
+      # Install a pinned nats-server so the JetStream KV/replay tests (#124)
+      # ACTUALLY RUN in CI instead of skipping. These prove the CAS primitive
+      # #146/#150 rebuild on; they cannot be faked (the revision is server-side),
+      # so if nats-server is absent they skip — and a skipped foundation test
+      # proves nothing. Pinned for reproducibility; bump deliberately.
+      - name: Install nats-server (for JetStream tests)
+        env:
+          NATS_SERVER_VERSION: v2.10.22
+        run: |
+          set -euo pipefail
+          # Baseline on the self-hosted runners; install only when absent (new or
+          # rebuilt runner). Never skip silently — an absent nats-server would
+          # turn the foundation tests into skips, which prove nothing.
+          if ! command -v nats-server >/dev/null 2>&1; then
+            url="https://github.com/nats-io/nats-server/releases/download/${NATS_SERVER_VERSION}/nats-server-${NATS_SERVER_VERSION}-linux-amd64.tar.gz"
+            echo "Downloading nats-server ${NATS_SERVER_VERSION} from ${url}"
+            work="${RUNNER_TEMP:-$HOME}/nats-server-install"
+            rm -rf "$work" && mkdir -p "$work"
+            curl -fsSL --connect-timeout 10 --max-time 120 "$url" -o "$work/nats-server.tar.gz"
+            tar -xzf "$work/nats-server.tar.gz" -C "$work"
+            sudo install "$work/nats-server-${NATS_SERVER_VERSION}-linux-amd64/nats-server" /usr/local/bin/nats-server
+            rm -rf "$work"
+          fi
+          nats-server --version
+
+      # Gate every workspace package that has a src/, mirroring the pre-push hook.
+      # A single package's failure fails the job (set -e), so all four checks run
+      # against src/ AND tests/ exactly like the local gate.
+      - name: Run gates for each package
+        env:
+          # Job-scoped tmp, never the shared /tmp. A self-hosted runner is
+          # long-lived, so /tmp persists across jobs, repos and users: a stale
+          # /tmp/pytest-of-runner left by an earlier job under a different uid
+          # makes pytest abort with "temporary directory ... is not owned by the
+          # current user", and inside an unprivileged LXC that directory can be
+          # owned by an out-of-range id that not even root can remove. An
+          # ephemeral GitHub image never hits this, which is why it only appeared
+          # after the move to self-hosted.
+          TMPDIR: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$TMPDIR"
+          fail=0
+          for pkg in packages/*/; do
+            [ -d "${pkg}src" ] || continue
+            name="$(basename "$pkg")"
+            echo "::group::gating ${name}"
+            uv venv --python 3.13 "${pkg}.venv"
+            uv pip install --python "${pkg}.venv/bin/python" -e "${pkg}[dev]"
+            ( cd "$pkg" && .venv/bin/ruff check src/ tests/ ) || fail=1
+            ( cd "$pkg" && .venv/bin/ruff format --check src/ tests/ ) || fail=1
+            ( cd "$pkg" && .venv/bin/mypy src/ tests/ ) || fail=1
+            ( cd "$pkg" && .venv/bin/python -m pytest tests/ -q ) || fail=1
+            echo "::endgroup::"
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "CI: one or more package gates failed."
+            exit 1
+          fi
+          echo "CI: all package gates passed."
+
+      - name: Install deploy workflow linters
+        run: |
+          set -euo pipefail
+          set -euo pipefail
+          # Self-hosted runners carry these in the baseline image, so the normal
+          # path is a no-op version check rather than an install on every run.
+          # Install only if the baseline is missing one (a rebuilt or new runner)
+          # — never silently skip, or the lint step would pass by absence.
+          command -v shellcheck >/dev/null 2>&1 || {
+            sudo apt-get update
+            sudo apt-get install --yes shellcheck
+          }
+          command -v actionlint >/dev/null 2>&1 || {
+            GOBIN=/usr/local/bin go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.9
+          }
+          shellcheck --version | head -2
+          actionlint --version | head -1
+
+      - name: Deploy workflow and release regressions
+        env:
+          FLEET_BUS_TEST_TMP: ${{ runner.temp }}/fleet-bus/deploy-release-tests
+          FLEET_BUS_TEST_ALLOW_RUNNER_TEMP: '1'
+        run: |
+          set -euo pipefail
+          bash -n scripts/deploy-hub-release.sh scripts/deploy-hub-remote.sh \
+            scripts/install-agent.sh \
+            tests/deploy-hub-release.test.sh tests/deploy-hub-remote.test.sh \
+            tests/install-agent-receipt.test.sh
+          shellcheck scripts/deploy-hub-release.sh scripts/deploy-hub-remote.sh \
+            scripts/install-agent.sh \
+            tests/deploy-hub-release.test.sh tests/deploy-hub-remote.test.sh \
+            tests/install-agent-receipt.test.sh
+          actionlint -shellcheck="$(command -v shellcheck)" \
+            -ignore 'label "fleet-bus" is unknown' .github/workflows/*.yml
+          bash tests/deploy-hub-release.test.sh
+          bash tests/deploy-hub-remote.test.sh
+          # #225: the release receipt is what makes package_version vary across
+          # hosts. Without this gate the agent-host path can silently stop
+          # stamping it and the drift signal goes null everywhere, unnoticed.
+          # Own test root: it archives every run, so sharing one with the deploy
+          # regressions would interleave their disposable state.
+          FLEET_BUS_TEST_TMP="${RUNNER_TEMP}/fleet-bus/install-agent-receipt-tests" \
+            bash tests/install-agent-receipt.test.sh
+
+  docs-drift:
+    name: docs drift (source changed without docs)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0  # need main to diff against
+
+      # Same check the pre-push hook runs. No-ops cleanly until a docs/api/
+      # layout exists (arrives with the build phases), so it never false-fails
+      # the foundation PR.
+      - name: Check docs drift
+        run: bash scripts/check-docs.sh

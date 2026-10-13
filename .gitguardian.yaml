@@ -1,0 +1,18 @@
+# GitGuardian / ggshield config for fleet-bus.
+#
+# The only entry here excludes the VENDORED gitleaks default ruleset from secret
+# scanning. That file (packages/fleet-nats/src/fleet_nats/redaction_patterns.toml)
+# is upstream gitleaks config (MIT, pinned tag v8.30.1) vendored verbatim so the
+# show-your-work display redactor can compile its 222 credential-shape regexes.
+#
+# It contains gitleaks' OWN example/allowlist strings (e.g. the AIzaSy... Google
+# API-key examples in the [allowlist] section) used upstream to prevent the
+# ruleset from self-matching. Those are public upstream test fixtures in a widely
+# distributed MIT artifact — NOT fleet credentials. Scanning a vendored public
+# regex database for secrets is a category error; we exclude the file by path so
+# a real secret elsewhere in the tree is still caught.
+version: 2
+
+secret:
+  ignored_paths:
+    - "packages/fleet-nats/src/fleet_nats/redaction_patterns.toml"

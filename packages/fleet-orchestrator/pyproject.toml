@@ -1,0 +1,75 @@
+[project]
+name = "fleet-orchestrator"
+version = "0.1.0"
+description = "Deterministic DAP coordination brain for the fleet — a pure state machine + bus-wired behaviors over fleet-nats. No LLM in the control path."
+# Floor 3.13 (fleet standard, rtech-hermes #338), matching fleet-nats.
+requires-python = ">=3.13"
+dependencies = [
+    "fleet-nats",   # workspace dep: the transport this orchestrator drives.
+    "httpx>=0.28.1",
+    "loguru>=0.7",  # sanitized structured logging, written in as each module is built.
+]
+
+[project.scripts]
+# The Phase-9 hub entrypoint. `fleet-orchestrator` is equivalent to
+# `python -m fleet_orchestrator` (both call fleet_orchestrator.__main__:main).
+fleet-orchestrator = "fleet_orchestrator.__main__:main"
+# The nightly organic canary (fleet-bus #89). `fleet-canary` is equivalent to
+# `python -m fleet_orchestrator.canary` (both call fleet_orchestrator.canary:main).
+fleet-canary = "fleet_orchestrator.canary:main"
+# The fleet-wide out-of-band kill switch operator command (fleet-bus #107).
+# `fleet-kill` is equivalent to `python -m fleet_orchestrator.kill` (both call
+# fleet_orchestrator.kill:main). CAS-arms/releases the shared FleetKV authority
+# over its dedicated control connection — no task_id, works while work callbacks are saturated.
+fleet-kill = "fleet_orchestrator.kill:main"
+
+[project.optional-dependencies]
+# Optional Langfuse task-lifecycle tracing (trace.py LangfuseTraceSink). Off by
+# default; the sink soft-imports and fails open when this extra is not installed,
+# so tests run with a fake client and never require the real SDK.
+langfuse = [
+    # Cap the major: the SDK-v3 API this sink targets is verified through v4
+    # (resolves to 4.13.x today). An unbounded major on a fleet dep is fragile —
+    # a v5 could silently break the trace/span API at deploy time.
+    "langfuse>=3,<5",
+]
+dev = [
+    "fleet-subscriber",
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fleet_orchestrator"]
+
+[tool.uv.sources]
+fleet-nats = { workspace = true }
+fleet-subscriber = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unused_ignores = true
+
+# The Langfuse SDK is an OPTIONAL dependency (extra `[langfuse]`), absent in the
+# default/dev/CI env by design — the LangfuseTraceSink soft-imports and fails
+# open. Ignore its missing stubs so a langfuse-free gate stays clean.
+[[tool.mypy.overrides]]
+module = ["langfuse", "langfuse.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

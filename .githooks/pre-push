@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Pre-push gate for fleet-bus. Checks the SAME paths CI checks (src/ AND tests/),
+# per docs/coding-standards.md — a hook that skips tests/ is a gap. Runs the gates
+# for every package under packages/ that has a .venv, then the docs-drift gate and
+# the ggshield secret scan. Mirrors .github/workflows/ci.yml.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "$0")/.." && pwd)"
+fail=0
+
+for pkg in "$repo_root"/packages/*/; do
+    [ -d "$pkg/src" ] || continue
+    venv="$pkg/.venv/bin"
+    if [ ! -x "$venv/ruff" ]; then
+        echo "pre-push: SKIP $(basename "$pkg") — no .venv (run: uv pip install -e '.[dev]')"
+        continue
+    fi
+    echo "pre-push: gating $(basename "$pkg")"
+    ( cd "$pkg" && "$venv/ruff" check src/ tests/ ) || fail=1
+    ( cd "$pkg" && "$venv/ruff" format --check src/ tests/ ) || fail=1
+    ( cd "$pkg" && "$venv/mypy" src/ tests/ ) || fail=1
+    ( cd "$pkg" && "$venv/python" -m pytest tests/ -q ) || fail=1
+done
+
+# docs-drift gate — source changed without its docs/api/ update (matches CI).
+# No-ops per-package until a docs/api/ layout exists (build phases add it).
+if [ -x "$repo_root/scripts/check-docs.sh" ]; then
+    bash "$repo_root/scripts/check-docs.sh" || fail=1
+fi
+
+# ggshield secret scan (fail closed if present per coding standards)
+if command -v ggshield >/dev/null 2>&1; then
+    ggshield secret scan pre-push || fail=1
+else
+    echo "pre-push: ggshield not installed — install it (secret scan is required)"
+    fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+    echo "pre-push: FAILED — fix the gates above before pushing."
+    exit 1
+fi
+echo "pre-push: all gates passed ✓"

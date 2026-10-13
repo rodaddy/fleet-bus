@@ -1,0 +1,50 @@
+[project]
+name = "fleet-subscriber"
+version = "0.1.0"
+description = "Per-agent Hermes NATS subscriber plugin — turns an inbound fleet-bus envelope into a real agent turn whose own words post to Discord. Uses the register_platform lever (never teams_pipeline)."
+# Floor 3.13 (fleet standard, rtech-hermes #338), matching fleet-nats.
+requires-python = ">=3.13"
+dependencies = [
+    "fleet-nats",   # workspace dep: the transport this subscriber consumes.
+    "loguru>=0.7",  # sanitized structured logging, written in as each module is built.
+    "pydantic>=2",  # typed turn deserialization boundary (#77) — no prose-scraping.
+]
+
+# NOTE: the Hermes gateway (hermes-agent, register_platform / MessageEvent /
+# SessionSource / DiscordAdapter) is NOT a pip dependency here — it is the host
+# runtime the plugin is installed INTO (~/.hermes/hermes-agent/plugins/). The
+# plugin imports the gateway's own modules at runtime on the agent host; under
+# test we stub that seam (see tests/), so nothing Hermes-specific is vendored.
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fleet_subscriber"]
+
+[tool.uv.sources]
+fleet-nats = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
