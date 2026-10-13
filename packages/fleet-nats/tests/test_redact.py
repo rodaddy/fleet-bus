@@ -24,7 +24,7 @@ from fleet_nats.redact import (
     vendored_source_digest,
 )
 
-_EXPECTED_SOURCE_DIGEST = "c61d4cf45c27a1eb4a345d191f776f7f264981338ac40ba51a4cbd4aa398e4eb"
+_EXPECTED_SOURCE_DIGEST = "7f9f9208bc77284db835e132ca3085f04ba126a3ab318f50beb7deb2ce9541b0"
 
 _LEAKY = [
     "https://discord.com/api/webhooks/123456789/abcDEF-ghiJKL",
