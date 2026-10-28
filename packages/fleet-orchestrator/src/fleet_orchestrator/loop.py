@@ -466,7 +466,7 @@ class OrchestratorHub:
 
         The one external lever on the running governor: a paused (over-budget)
         task is only resumable by this in-process instance, so a harness or a
-        Nagatha-side steer publishes a ``control`` frame on the hub's control
+        Heron-side steer publishes a ``control`` frame on the hub's control
         lane and it lands here. The op set is closed; anything else — a malformed
         frame, an unknown op — is a LOUD no-op with the sender recorded, never a
         crash and never a silent swallow (fleet-bus #59 fail-safe).

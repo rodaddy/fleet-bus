@@ -51,11 +51,11 @@ def _env(
     )
 
 
-def _heartbeat(agent: str = "nagatha") -> Heartbeat:
+def _heartbeat(agent: str = "heron") -> Heartbeat:
     return Heartbeat(agent_id=agent, role="agent", lanes=("dev.all",), seq=1)
 
 
-def _presence(agent: str = "nagatha") -> Presence:
+def _presence(agent: str = "heron") -> Presence:
     return Presence(agent_id=agent, role="agent", lanes=("dev.all",), seq=1)
 
 
@@ -189,10 +189,10 @@ async def test_connect_passes_single_url_auth_and_reconnect_kwargs(tmp_path: Any
     creds = tmp_path / "agent.creds"
     creds.write_text("placeholder", encoding="utf-8")
     cfg = BusConfig(
-        agent_id="nagatha",
+        agent_id="heron",
         url="nats://user:secret@192.0.2.99:4222",
         env="dev",
-        name="fleet-nats-nagatha",
+        name="fleet-nats-heron",
         connect_timeout_s=1,
         max_reconnect_attempts=3,
         reconnect_wait_s=4,
@@ -207,14 +207,14 @@ async def test_connect_passes_single_url_auth_and_reconnect_kwargs(tmp_path: Any
     kwargs = _StubNATS.instances[0].connect_kwargs
     assert kwargs is not None
     assert kwargs["servers"] == ["nats://user:secret@192.0.2.99:4222"]
-    assert kwargs["name"] == "fleet-nats-nagatha"
+    assert kwargs["name"] == "fleet-nats-heron"
     assert kwargs["connect_timeout"] == 1
     assert kwargs["max_reconnect_attempts"] == 3
     assert kwargs["reconnect_time_wait"] == 4
     assert kwargs["user"] is None
     assert kwargs["password"] is None
     assert kwargs["user_credentials"] == str(creds)
-    assert kwargs["inbox_prefix"] == "_INBOX.nagatha"
+    assert kwargs["inbox_prefix"] == "_INBOX.heron"
     assert callable(kwargs["disconnected_cb"])
     assert callable(kwargs["reconnected_cb"])
     assert callable(kwargs["closed_cb"])
@@ -247,7 +247,7 @@ async def test_error_cb_reports_authz_refusal_as_a_dropped_message() -> None:
 
         records.clear()
         await error_cb(
-            Exception('nats: permissions violation for publish to "dev.agent.dispatch.skippy"')
+            Exception('nats: permissions violation for publish to "dev.agent.dispatch.wren"')
         )
         assert any(
             level == "ERROR" and "REFUSED" in message and "DROPPED" in message
@@ -267,7 +267,7 @@ async def test_error_cb_reports_authz_refusal_as_a_dropped_message() -> None:
 
 
 async def test_close_drains_connected_client() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     await bus.close()
 
@@ -283,7 +283,7 @@ def test_auth_rejection_marker_matches_nats_initial_connect_errors() -> None:
 
 @pytest.mark.parametrize(
     "agent_id",
-    ["Skippy Smith", "bilby.v2"],
+    ["Wren Smith", "finch.v2"],
 )
 def test_config_rejects_lossy_reply_inbox_identities(agent_id: str) -> None:
     with pytest.raises(ValueError, match="canonical NATS identity token"):
@@ -291,15 +291,15 @@ def test_config_rejects_lossy_reply_inbox_identities(agent_id: str) -> None:
 
 
 def test_config_prefers_authenticated_user_for_reply_inbox() -> None:
-    config = BusConfig(agent_id="spoofable-label", nats_user="skippy", nats_password="test-only")
-    assert config.inbox_prefix == "_INBOX.skippy"
+    config = BusConfig(agent_id="spoofable-label", nats_user="wren", nats_password="test-only")
+    assert config.inbox_prefix == "_INBOX.wren"
 
 
 def test_creds_file_uses_configured_identity_for_fail_closed_server_grant(tmp_path: Path) -> None:
     creds = tmp_path / "agent.creds"
     creds.write_text("placeholder", encoding="utf-8")
-    config = BusConfig(agent_id="bilby", nats_creds_file=str(creds))
-    assert config.inbox_prefix == "_INBOX.bilby"
+    config = BusConfig(agent_id="finch", nats_creds_file=str(creds))
+    assert config.inbox_prefix == "_INBOX.finch"
 
 
 def test_policy_defaults_durable_with_typed_heartbeat_as_sole_core_exception() -> None:
@@ -308,7 +308,7 @@ def test_policy_defaults_durable_with_typed_heartbeat_as_sole_core_exception() -
     Durable by default; the ONLY implicit core exception is a bound typed
     ``Heartbeat``/``Presence`` whose own model owns ``jetstream=False``.
     """
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
 
     # No typed signal, any kind -> durable.
     assert bus.delivery_mode_for("dev.any", _env("status")) is DeliveryMode.DURABLE
@@ -326,7 +326,7 @@ def test_policy_defaults_durable_with_typed_heartbeat_as_sole_core_exception() -
 
 def test_policy_ignores_kind_string_and_payload_keys_reads_only_typed_signal() -> None:
     """Neither a spoofed ``kind`` nor a payload ``jetstream`` key moves delivery."""
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
 
     # A kind="heartbeat" WITHOUT a typed signal is NOT the exception -> durable.
     assert bus.delivery_mode_for("dev.any", _env("heartbeat")) is DeliveryMode.DURABLE
@@ -345,7 +345,7 @@ def test_policy_ignores_kind_string_and_payload_keys_reads_only_typed_signal() -
 
 def test_policy_explicit_mode_overrides_typed_signal_unambiguously() -> None:
     """An explicit ``mode=`` wins over the typed-signal policy, in both directions."""
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
 
     heartbeat = _env("heartbeat", typed_signal=_heartbeat())
     ordinary = _env("status")
@@ -362,7 +362,7 @@ def test_policy_explicit_mode_overrides_typed_signal_unambiguously() -> None:
 
 
 async def test_publish_ordinary_envelope_uses_jetstream_with_prevalidated_stream() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     envelope = _env("status")
 
@@ -379,7 +379,7 @@ async def test_publish_ordinary_envelope_uses_jetstream_with_prevalidated_stream
         "dev.agent.*.status.task-1",  # a hostile channel="*" builds exactly this
         "dev.agent.status.*",
         "dev.agent.>",
-        "dev.agent.*.relay.skippy",
+        "dev.agent.*.relay.wren",
     ],
 )
 async def test_publish_refuses_a_wildcard_subject_instead_of_dropping_it(subject: str) -> None:
@@ -392,7 +392,7 @@ async def test_publish_refuses_a_wildcard_subject_instead_of_dropping_it(subject
     relay/wake/ack/telemetry forms, so ``channel="*"`` is reachable from real
     inbound traffic, not just misuse.
     """
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     with pytest.raises(ValueError, match="wildcard-bearing subject"):
@@ -406,7 +406,7 @@ async def test_publish_refuses_a_wildcard_subject_instead_of_dropping_it(subject
 
 async def test_publish_still_allows_concrete_scoped_subjects() -> None:
     """The guard must not touch the legitimate scoped form #117 introduced."""
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     envelope = _env("status")
 
@@ -417,7 +417,7 @@ async def test_publish_still_allows_concrete_scoped_subjects() -> None:
 
 
 async def test_publish_fails_loud_when_durable_stream_is_missing() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     client = _StubNATS.instances[0]
     client.jetstream_context.stream_for_subject = NotFoundError(description="no stream")
@@ -430,7 +430,7 @@ async def test_publish_fails_loud_when_durable_stream_is_missing() -> None:
 
 
 async def test_publish_fails_loud_when_jetstream_capability_is_missing() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     client = _StubNATS.instances[0]
     client.jetstream_context.stream_for_subject = NoRespondersError()
@@ -444,7 +444,7 @@ async def test_publish_fails_loud_when_jetstream_capability_is_missing() -> None
 
 async def test_publish_typed_heartbeat_and_presence_and_explicit_core_use_core_nats() -> None:
     """Typed Heartbeat and Presence publish over core NATS; so does explicit CORE."""
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     heartbeat = _env("heartbeat", typed_signal=_heartbeat())
@@ -466,7 +466,7 @@ async def test_publish_typed_heartbeat_and_presence_and_explicit_core_use_core_n
 
 async def test_publish_roundtripped_typed_heartbeat_still_uses_core_nats() -> None:
     """Replay/forward of a typed heartbeat preserves the core routing policy."""
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     heartbeat = Envelope.from_bytes(_env("heartbeat", typed_signal=_heartbeat()).to_bytes())
 
@@ -479,7 +479,7 @@ async def test_publish_roundtripped_typed_heartbeat_still_uses_core_nats() -> No
 
 async def test_publish_regular_typed_signal_stays_durable() -> None:
     """A typed Done/Stance signal has no jetstream=False field -> durable by default."""
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     done = _env("done", typed_signal=Done(task_id="t1"))
@@ -497,7 +497,7 @@ async def test_no_stream_or_consumer_is_created_by_the_policy_path() -> None:
     Publishing a typed heartbeat (core) and an ordinary envelope (durable) must
     only bind to the PRE-existing stream via find/publish — never create one.
     """
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     client = _StubNATS.instances[0]
 
@@ -521,7 +521,7 @@ async def test_subscribe_defaults_durable_but_core_opt_out_decodes_and_survives_
         if envelope.kind == "boom":
             raise RuntimeError("handler failed")
 
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     with pytest.raises(DurableNotProvisionedError):
@@ -543,7 +543,7 @@ async def test_subscribe_typed_heartbeat_and_presence_use_core_without_subject_i
     async def handler(envelope: Envelope) -> None:
         seen.append(envelope.kind)
 
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     heartbeat_sub = await bus.subscribe("dev.anything", handler, typed_signal=_heartbeat())
@@ -565,7 +565,7 @@ async def test_subscribe_no_or_non_ephemeral_typed_signal_stays_durable() -> Non
     async def handler(envelope: Envelope) -> None:
         _ = envelope
 
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     with pytest.raises(DurableNotProvisionedError):
@@ -582,7 +582,7 @@ async def test_subscribe_explicit_mode_overrides_typed_signal() -> None:
     async def handler(envelope: Envelope) -> None:
         _ = envelope
 
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     with pytest.raises(DurableNotProvisionedError):
@@ -601,7 +601,7 @@ async def test_subscribe_explicit_mode_overrides_typed_signal() -> None:
 
 
 async def test_durable_subscribe_requires_caller_supplied_consumer() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     async def handler(envelope: Envelope) -> None:
@@ -616,7 +616,7 @@ async def test_durable_subscribe_requires_caller_supplied_consumer() -> None:
 
 
 async def test_durable_subscribe_fails_loud_when_consumer_is_missing() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     client = _StubNATS.instances[0]
     client.jetstream_context.consumer_result = NotFoundError(description="no consumer")
@@ -632,7 +632,7 @@ async def test_durable_subscribe_fails_loud_when_consumer_is_missing() -> None:
 
 
 async def test_durable_subscribe_rejects_unbounded_consumer_max_deliver() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     client = _StubNATS.instances[0]
     client.jetstream_context.consumer_result = SimpleNamespace(
@@ -657,7 +657,7 @@ async def test_durable_subscribe_terms_poison_naks_failure_and_acks_success() ->
         if envelope.kind == "boom":
             raise RuntimeError("handler failed")
 
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     await bus.subscribe("dev.events", handler, consumer="worker-a")
@@ -699,7 +699,7 @@ async def test_raw_subscribe_core_opt_out_and_durable_caller_owned_ack() -> None
         if msg.data == b"durable-raw":
             await msg.ack()
 
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     with pytest.raises(DurableNotProvisionedError):
@@ -729,7 +729,7 @@ async def test_raw_subscribe_typed_heartbeat_uses_core_and_non_ephemeral_stays_d
     async def handler(msg: _Msg) -> None:
         seen.append(msg.data)
 
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     core_sub = await bus.raw_subscribe(
@@ -758,7 +758,7 @@ async def test_raw_subscribe_explicit_mode_overrides_typed_signal() -> None:
     async def handler(msg: _Msg) -> None:
         _ = msg
 
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     with pytest.raises(DurableNotProvisionedError):
@@ -783,7 +783,7 @@ async def test_raw_subscribe_explicit_mode_overrides_typed_signal() -> None:
 
 
 async def test_raw_durable_subscribe_rejects_unbounded_consumer_max_deliver() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     client = _StubNATS.instances[0]
     client.jetstream_context.consumer_result = SimpleNamespace(
@@ -805,7 +805,7 @@ async def test_subclass_policy_seam_still_runs_payload_guard() -> None:
         def delivery_mode_for(self, subject: str, envelope: Envelope) -> DeliveryMode:
             return DeliveryMode.CORE
 
-    bus = CoreTransport(BusConfig(agent_id="nagatha"))
+    bus = CoreTransport(BusConfig(agent_id="heron"))
     await bus.connect()
     _StubNATS.instances[0].max_payload = 10
 
@@ -816,7 +816,7 @@ async def test_subclass_policy_seam_still_runs_payload_guard() -> None:
 
 
 async def test_payload_guard_covers_check_publish_request_and_reply() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     _StubNATS.instances[0].max_payload = 10
     envelope = _env("heartbeat", payload={"body": "x" * 100})
@@ -832,7 +832,7 @@ async def test_payload_guard_covers_check_publish_request_and_reply() -> None:
 
 
 async def test_request_preserves_none_semantics_and_raises_other_failures() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
     client = _StubNATS.instances[0]
 
@@ -857,7 +857,7 @@ async def test_request_preserves_none_semantics_and_raises_other_failures() -> N
 
 
 async def test_reply_without_reply_subject_drops_without_publish() -> None:
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()
 
     await bus.reply(cast(Msg, _Msg(reply="")), _env("heartbeat"))

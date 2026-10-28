@@ -3,9 +3,9 @@
 Issue #8: the trio runs the same subscriber plugin under two roles. Issue #222
 adds a third, publish-only role for non-agent principals.
 
-- **worker** (Skippy, Bilby) — receives work: subscribes to its own
+- **worker** (Wren, Finch) — receives work: subscribes to its own
   ``dispatch`` / ``relay`` / ``wake`` / ``inbox`` lanes (all per-agent subjects).
-- **manager** (Nagatha) — coordinates: at the *adapter* level it subscribes only
+- **manager** (Heron) — coordinates: at the *adapter* level it subscribes only
   to its own ``inbox``. The task-keyed lanes a manager observes
   (``agent_status.{task_id}``, ``agent_arbitrate.{topic}``) are **not** subscribed
   here: their ids are unknown at connect-time, and the orchestrator already owns

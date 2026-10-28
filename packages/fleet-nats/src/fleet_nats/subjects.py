@@ -345,7 +345,7 @@ def hub_control(env: str, task_id: str) -> str:
 
     The manager run-loop (the hub) owns a task's live governor state in-process;
     a paused (over-budget) task is only resumable by that live instance. This is
-    the lane a harness or a Nagatha-side steer publishes a ``control`` frame on
+    the lane a harness or a Heron-side steer publishes a ``control`` frame on
     to reach it — ``resume`` / ``pause`` (fleet-bus #59). Its OWN layer, not
     folded into ``agent``: control ops are hub-directed operator actions, not
     crew coordination, and must stay independently observable and isolated from a

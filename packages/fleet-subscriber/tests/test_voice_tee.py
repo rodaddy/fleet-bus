@@ -882,7 +882,7 @@ def test_noise_lanes_are_never_forwardable() -> None:
         assert not is_forwardable(subjects.agent_ack("dev", "t-1", channel=channel))
         assert not is_forwardable(subjects.agent_telemetry("dev", "t-1", channel=channel))
         assert is_forwardable(subjects.agent_status("dev", "t-1", channel=channel))
-        assert is_forwardable(subjects.agent_dispatch("dev", "skippy", channel=channel))
+        assert is_forwardable(subjects.agent_dispatch("dev", "wren", channel=channel))
 
 
 def test_unparseable_subject_fails_open_and_forwards() -> None:

@@ -15,10 +15,10 @@ def _sample() -> Envelope:
     return Envelope.new(
         msg_id="abc123",
         ts="2026-07-07T00:00:00Z",
-        sender="nagatha",
+        sender="heron",
         kind="dispatch",
         payload={"task": "review PR", "steps": [1, 2, 3]},
-        to="bilby",
+        to="finch",
         task_id="t_deadbeef",
         channel="all-agents",
         topic="review",
@@ -40,12 +40,12 @@ def test_fleet_nats_envelope_reexports_fleet_core_contract() -> None:
 def test_wire_uses_from_key_not_sender() -> None:
     # The wire field is `from` (Python keyword) mapped to .sender.
     raw = _sample().to_bytes()
-    assert b'"from":"nagatha"' in raw
+    assert b'"from":"heron"' in raw
     assert b'"sender"' not in raw
 
 
 def test_roundtrip_minimal_optionals_none() -> None:
-    env = Envelope.new(msg_id="x", ts="t", sender="skippy", kind="status")
+    env = Envelope.new(msg_id="x", ts="t", sender="wren", kind="status")
     restored = Envelope.from_bytes(env.to_bytes())
     assert restored.to is None
     assert restored.task_id is None

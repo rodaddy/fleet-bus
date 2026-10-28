@@ -45,7 +45,7 @@ def _narrator(bus: _RecordingBus) -> Narrator:
     ids = (f"n{i}" for i in itertools.count())
     times = (f"2026-07-09T00:00:{i:02d}Z" for i in itertools.count())
     return Narrator(
-        bus, env="dev", manager="nagatha", new_id=lambda: next(ids), now=lambda: next(times)
+        bus, env="dev", manager="heron", new_id=lambda: next(ids), now=lambda: next(times)
     )
 
 
@@ -152,7 +152,7 @@ async def test_timeout_narrates_one_failure_headline_and_exits_one() -> None:
     assert result.exit_code == 1
     assert len(bus.published) == 1  # exactly one headline
     subject, env = bus.published[0]
-    assert subject == subjects.agent_inbox("dev", "nagatha")  # manager inbox lane
+    assert subject == subjects.agent_inbox("dev", "heron")  # manager inbox lane
     assert env.kind == NARRATION_KIND
     assert env.channel == _CHANNEL  # carries the intake channel (PR #85 path)
     text = env.payload["text"]
@@ -235,7 +235,7 @@ _REQUIRED_ENV = ("FLEET_MANAGER_ID", "FLEET_INTAKE_LABEL", "FLEET_INTAKE_CHANNEL
 
 def _set_live_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Set every required live-run var so a guard under test fires in isolation."""
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
     monkeypatch.setenv("FLEET_INTAKE_LABEL", "[fleet]")
     monkeypatch.setenv("FLEET_INTAKE_CHANNEL", "all-agents")
 
@@ -279,7 +279,7 @@ def test_main_bad_timeout_exits_two(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_main_dry_run_tolerates_missing_channel(monkeypatch: pytest.MonkeyPatch) -> None:
     # --dry-run wires no narrator, so an unset channel is NOT a config error there:
     # the run must get past the channel guard (and only then hit the network stub).
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
     monkeypatch.setenv("FLEET_INTAKE_LABEL", "[fleet]")
     monkeypatch.delenv("FLEET_INTAKE_CHANNEL", raising=False)
 

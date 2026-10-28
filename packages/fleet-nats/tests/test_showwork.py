@@ -38,7 +38,7 @@ TASK = "t_grad51783562393"
 @pytest.mark.parametrize(
     ("suffix", "expected"),
     [
-        ("agent.dispatch.skippy", "dispatch"),
+        ("agent.dispatch.wren", "dispatch"),
         ("agent.arbitrate.grad-5", "arbitrate"),
         ("kboard.task.created.t_1", "kboard_event"),
     ],
@@ -59,15 +59,15 @@ _REAL_TRACE_FRAMES: list[dict[str, object]] = [
         "ts": "2026-07-09T02:00:09.199679+00:00",
         "task_id": TASK,
         "action": "dispatch",
-        "target": "skippy",
-        "subject": "dev.agent.dispatch.skippy",
+        "target": "wren",
+        "subject": "dev.agent.dispatch.wren",
     },
     {
         "ts": "2026-07-09T02:00:09.201000+00:00",
         "task_id": TASK,
         "action": "dispatch",
-        "target": "bilby",
-        "subject": "dev.agent.dispatch.bilby",
+        "target": "finch",
+        "subject": "dev.agent.dispatch.finch",
     },
     # A decision record: state + event + action, no subject (real thin shape).
     {
@@ -82,16 +82,16 @@ _REAL_TRACE_FRAMES: list[dict[str, object]] = [
         "ts": "2026-07-09T02:00:12.977438+00:00",
         "task_id": TASK,
         "action": "relay",
-        "target": "skippy",
-        "subject": "dev.agent.relay.skippy",
+        "target": "wren",
+        "subject": "dev.agent.relay.wren",
     },
     # A wake bus-op.
     {
         "ts": "2026-07-09T02:00:29.079468+00:00",
         "task_id": TASK,
         "action": "wake",
-        "target": "skippy",
-        "subject": "dev.agent.wake.skippy",
+        "target": "wren",
+        "subject": "dev.agent.wake.wren",
     },
     # A DECIDE decision record: winner in target (this is how the real trace
     # records an arbitration winner — no `decision` scalar).
@@ -99,7 +99,7 @@ _REAL_TRACE_FRAMES: list[dict[str, object]] = [
         "ts": "2026-07-09T02:00:36.500000+00:00",
         "task_id": TASK,
         "action": "decide",
-        "target": "bilby",
+        "target": "finch",
     },
     # A NOOP decision record — must be dropped as trail noise.
     {
@@ -119,8 +119,8 @@ _REAL_TRACE_FRAMES: list[dict[str, object]] = [
         "ts": "2026-07-09T02:00:10.000000+00:00",
         "task_id": "t_other",
         "action": "dispatch",
-        "target": "skippy",
-        "subject": "dev.agent.dispatch.skippy",
+        "target": "wren",
+        "subject": "dev.agent.dispatch.wren",
     },
 ]
 
@@ -135,7 +135,7 @@ def test_real_trace_shape_parses_without_kind_field() -> None:
     frame = parse_frame(json.dumps(_REAL_TRACE_FRAMES[0]))
     assert frame is not None
     assert frame.kind == "dispatch"  # derived from action
-    assert frame.target == "skippy"
+    assert frame.target == "wren"
     assert frame.text == ""  # the real trace carries no body — normal, not a crash
 
 
@@ -151,10 +151,10 @@ def test_real_trace_scopes_and_drops_noop_and_offtask() -> None:
 def test_real_trace_reconstructs_participants_decision_outcome() -> None:
     summary, _ = reconstruct(_real_lines(), TASK)
     # Participants come off the dispatch/relay/wake/decide targets (no sender).
-    assert "skippy" in summary.participants
-    assert "bilby" in summary.participants
+    assert "wren" in summary.participants
+    assert "finch" in summary.participants
     # DECIDE winner is recorded in the action="decide" record's target.
-    assert summary.decision == "bilby"
+    assert summary.decision == "finch"
     # complete action → outcome.
     assert summary.outcome == "completed"
 
@@ -165,7 +165,7 @@ def test_real_trace_renders_et_and_coordination_trail() -> None:
     assert md.index("## Summary") < md.index("## Transcript")
     assert "2026-07-08 22:00:09 EDT" in md  # UTC 02:00 → ET 22:00 prior day
     assert "**dispatch**" in md
-    assert "**decide**" in md and "bilby" in md
+    assert "**decide**" in md and "finch" in md
     assert "outcome: completed" in md
 
 
@@ -176,18 +176,18 @@ def test_real_trace_renders_et_and_coordination_trail() -> None:
 _FIXTURE_FRAMES: list[dict[str, object]] = [
     {  # heartbeat — always dropped (liveness noise)
         "ts": "2026-07-09T01:59:58.716895+00:00",
-        "subject": "dev.agent.heartbeat.bilby",
+        "subject": "dev.agent.heartbeat.finch",
         "kind": "heartbeat",
         "task_id": None,
-        "sender": "bilby",
+        "sender": "finch",
         "id": "hb1",
     },
     {  # off-task frame — different task, excluded
         "ts": "2026-07-09T01:59:59.000000+00:00",
-        "subject": "dev.agent.dispatch.skippy",
+        "subject": "dev.agent.dispatch.wren",
         "kind": "dispatch",
         "task_id": "t_other",
-        "sender": "nagatha",
+        "sender": "heron",
         "id": "off1",
         "text_preview": "unrelated task",
     },
@@ -203,30 +203,30 @@ _FIXTURE_FRAMES: list[dict[str, object]] = [
     },
     {
         "ts": "2026-07-09T02:00:09.199656+00:00",
-        "subject": "dev.agent.inbox.nagatha",
+        "subject": "dev.agent.inbox.heron",
         "kind": "narration",
         "task_id": TASK,
-        "sender": "nagatha",
+        "sender": "heron",
         "id": "n1",
-        "text_preview": f"[{TASK}] dispatched to skippy,bilby - coordination started.",
+        "text_preview": f"[{TASK}] dispatched to wren,finch - coordination started.",
     },
     {
         "ts": "2026-07-09T02:00:09.199679+00:00",
-        "subject": "dev.agent.dispatch.skippy",
+        "subject": "dev.agent.dispatch.wren",
         "kind": "dispatch",
         "task_id": TASK,
-        "sender": "nagatha",
+        "sender": "heron",
         "id": "d1",
         "text_preview": "[fleet] Fleet config-drift audit across the three agent repos.",
     },
     {
         "ts": "2026-07-09T02:00:12.977438+00:00",
-        "subject": "dev.agent.relay.skippy",
+        "subject": "dev.agent.relay.wren",
         "kind": "relay",
         "task_id": TASK,
-        "sender": "nagatha",
+        "sender": "heron",
         "id": "r1",
-        "missed_from": "bilby",
+        "missed_from": "finch",
         "text_preview": "finished my step, results attached",
     },
     {  # a status frame carrying a SIGNED stance (dissent + fact_pull)
@@ -234,7 +234,7 @@ _FIXTURE_FRAMES: list[dict[str, object]] = [
         "subject": f"dev.agent.status.{TASK}",
         "kind": "status",
         "task_id": TASK,
-        "sender": "bilby",
+        "sender": "finch",
         "id": "s1",
         "meta": {"stance": "dissent", "fact_pull": True},
         "text_preview": "signed: I dissent and I pulled a fact to back it",
@@ -244,17 +244,17 @@ _FIXTURE_FRAMES: list[dict[str, object]] = [
         "subject": f"dev.agent.status.{TASK}",
         "kind": "status",
         "task_id": TASK,
-        "sender": "skippy",
+        "sender": "wren",
         "id": "s2",
         "meta": {"stance": "agree", "fact_pull": False},
         "text_preview": "signed: I agree with the consensus",
     },
     {  # a wake ping (empty payload)
         "ts": "2026-07-09T02:00:29.079468+00:00",
-        "subject": "dev.agent.wake.skippy",
+        "subject": "dev.agent.wake.wren",
         "kind": "wake",
         "task_id": TASK,
-        "sender": "nagatha",
+        "sender": "heron",
         "id": "w1",
     },
     {  # topic-scoped arbitrate frame — no task_id, tied by topic
@@ -262,10 +262,10 @@ _FIXTURE_FRAMES: list[dict[str, object]] = [
         "subject": "dev.agent.arbitrate.grad-5",
         "kind": "arbitrate",
         "task_id": None,
-        "sender": "nagatha",
+        "sender": "heron",
         "id": "arb1",
         "topic": "grad-5",
-        "decision": "bilby",
+        "decision": "finch",
     },
     {  # a control:pause with sender + reason
         "ts": "2026-07-09T02:00:40.000000+00:00",
@@ -292,7 +292,7 @@ _FIXTURE_FRAMES: list[dict[str, object]] = [
         "subject": f"dev.agent.status.{TASK}",
         "kind": "done",
         "task_id": TASK,
-        "sender": "nagatha",
+        "sender": "heron",
         "id": "done1",
         "outcome": "completed",
     },
@@ -318,17 +318,17 @@ def test_reconstruct_scopes_and_orders() -> None:
 
 def test_summary_participants_and_decision() -> None:
     summary, _ = reconstruct(_lines(), TASK, topic="grad-5")
-    assert "skippy" in summary.participants
-    assert "bilby" in summary.participants
-    assert "nagatha" in summary.participants
-    assert summary.decision == "bilby"
+    assert "wren" in summary.participants
+    assert "finch" in summary.participants
+    assert "heron" in summary.participants
+    assert summary.decision == "finch"
     assert summary.outcome == "completed"
 
 
 def test_stance_parsing_from_meta() -> None:
     summary, _ = reconstruct(_lines(), TASK, topic="grad-5")
-    assert ("bilby", "dissent", True) in summary.stances
-    assert ("skippy", "agree", False) in summary.stances
+    assert ("finch", "dissent", True) in summary.stances
+    assert ("wren", "agree", False) in summary.stances
 
 
 def test_control_ops_captured_with_sender_and_reason() -> None:
@@ -353,7 +353,7 @@ def test_markdown_summary_first_transcript_second_et() -> None:
     assert "2026-07-08 22:00:09 EDT" in md
     assert "[[stance:dissent +fact_pull]]" in md
     assert "control:pause" in md
-    assert "arbitrate" in md and "decision=bilby" in md
+    assert "arbitrate" in md and "decision=finch" in md
     assert "outcome: completed" in md
 
 
@@ -373,7 +373,7 @@ def test_redaction_scrubs_secrets_in_render() -> None:
         "subject": f"dev.agent.status.{TASK}",
         "kind": "status",
         "task_id": TASK,
-        "sender": "skippy",
+        "sender": "wren",
         "id": "sx",
         "text_preview": (
             "here is the webhook https://discord.com/api/webhooks/123/abcDEF "
@@ -393,7 +393,7 @@ def test_json_surface_also_redacts() -> None:
         "subject": f"dev.agent.status.{TASK}",
         "kind": "status",
         "task_id": TASK,
-        "sender": "skippy",
+        "sender": "wren",
         "id": "sx",
         "text_preview": "token=ghp_0123456789abcdefghijklmnopqrstuv secret",
     }
@@ -414,7 +414,7 @@ def test_missing_task_id_raises() -> None:
 def test_unusable_lines_skipped_not_fatal() -> None:
     lines = ["", "not json", "[]", "{}", json.dumps(_FIXTURE_FRAMES[4])]
     summary, frames = reconstruct(lines, TASK)
-    # only the one usable in-scope frame (index 4 → the dispatch to skippy).
+    # only the one usable in-scope frame (index 4 → the dispatch to wren).
     assert summary.frame_count == 1
     assert frames[0].kind == "dispatch"
 
@@ -426,13 +426,13 @@ def test_parse_frame_reads_raw_payload_shape() -> None:
         "subject": f"dev.agent.status.{TASK}",
         "kind": "status",
         "task_id": TASK,
-        "from": "bilby",
+        "from": "finch",
         "id": "raw1",
         "payload": {"text": "raw body here", "meta": {"stance": "neutral", "fact_pull": False}},
     }
     frame = parse_frame(json.dumps(raw))
     assert frame is not None
-    assert frame.sender == "bilby"
+    assert frame.sender == "finch"
     assert frame.text == "raw body here"
     assert frame.meta.get("stance") == "neutral"
 
@@ -454,7 +454,7 @@ def test_truncation_notes_and_pointer() -> None:
                 "subject": f"dev.agent.status.{TASK}",
                 "kind": "status",
                 "task_id": TASK,
-                "sender": "skippy",
+                "sender": "wren",
                 "id": f"m{i}",
                 "text_preview": f"status update number {i} with some padding text here",
             }
@@ -537,7 +537,7 @@ def test_extra_scalar_leak_redacted_markdown() -> None:
         "subject": f"dev.agent.status.{TASK}",
         "kind": "done",
         "task_id": TASK,
-        "sender": "nagatha",
+        "sender": "heron",
         "id": "leak1",
         "outcome": "completed https://discord.com/api/webhooks/1/secretHook",
     }
@@ -556,7 +556,7 @@ def test_meta_token_leak_redacted_json() -> None:
         "subject": f"dev.agent.status.{TASK}",
         "kind": "status",
         "task_id": TASK,
-        "sender": "bilby",
+        "sender": "finch",
         "id": "leak2",
         "meta": {
             "stance": "dissent",
@@ -576,7 +576,7 @@ def test_extra_webhook_leak_redacted_json() -> None:
         "subject": f"dev.agent.status.{TASK}",
         "kind": "done",
         "task_id": TASK,
-        "sender": "nagatha",
+        "sender": "heron",
         "id": "leak3",
         "outcome": "done https://hooks.slack.com/services/T/B/XXXX",
     }
@@ -595,7 +595,7 @@ def test_fail_closed_meta_structure(monkeypatch: pytest.MonkeyPatch) -> None:
         "subject": f"dev.agent.status.{TASK}",
         "kind": "status",
         "task_id": TASK,
-        "sender": "bilby",
+        "sender": "finch",
         "id": "leak4",
         "meta": {"stance": "dissent", "note": "raw token abcXYZ123"},
     }
@@ -614,7 +614,7 @@ def test_unknown_kind_renders_via_catch_all() -> None:
         "subject": f"dev.agent.mystery.{TASK}",
         "kind": "mystery_kind",
         "task_id": TASK,
-        "sender": "skippy",
+        "sender": "wren",
         "id": "u1",
         "text_preview": "some future frame",
     }
@@ -671,16 +671,16 @@ def test_decision_narration_scrape_fallback() -> None:
     frames = [
         {
             "ts": "2026-07-09T02:00:09.000000+00:00",
-            "subject": "dev.agent.inbox.nagatha",
+            "subject": "dev.agent.inbox.heron",
             "kind": "narration",
             "task_id": TASK,
-            "sender": "nagatha",
+            "sender": "heron",
             "id": "nd1",
-            "text_preview": f"[{TASK}] decided for skippy (evidenced position).",
+            "text_preview": f"[{TASK}] decided for wren (evidenced position).",
         }
     ]
     summary, _ = reconstruct([json.dumps(f) for f in frames], TASK)
-    assert summary.decision == "skippy"
+    assert summary.decision == "wren"
 
 
 # ---- Golden fixture (REAL hub-journal shape drift anchor) --------------------
@@ -707,7 +707,7 @@ def test_golden_fixture_reconstructs() -> None:
         "state": "arbitrating",
         "action": "arbitrate",
     }
-    assert summary.decision == "bilby"
+    assert summary.decision == "finch"
     assert summary.outcome == "completed"
     md = render_markdown(summary, frames, max_chars=None).markdown
     assert md.index("## Summary") < md.index("## Transcript")

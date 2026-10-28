@@ -9,7 +9,7 @@ Auto-skips off-network (mirrors ``test_behaviors_live.py`` /
 
 **Scope — what this proves and what it does NOT.** This exercises the orchestrator
 coordination brain over *real transport*, but the "workers" are pytest publishers
-(``sub_bus.publish(agent_status…)``), NOT the real Skippy/Bilby agents running
+(``sub_bus.publish(agent_status…)``), NOT the real Wren/Finch agents running
 their Hermes gateways. So it proves *dispatch/relay/done coordination works on the
 live bus* — genuinely live, and the load-bearing half of #9 — but it is an
 **integration test with simulated workers**, not the full real-agent proving run.
@@ -85,7 +85,7 @@ async def test_e2e_dispatch_relay_done_proving_run() -> None:
 
     run = _run_token()
     channel = f"pytest-e2e-proving-{run}"
-    workers = (f"pytest-skippy-{run}", f"pytest-bilby-{run}")
+    workers = (f"pytest-wren-{run}", f"pytest-finch-{run}")
     quiet_worker, relay_peer = workers
     task_id = f"e2e-proving-task-{run}"
 
@@ -105,7 +105,7 @@ async def test_e2e_dispatch_relay_done_proving_run() -> None:
         relayed_to.append(env)
         got_relay.set()
 
-    mgr_cfg = BusConfig(agent_id=f"pytest-nagatha-{run}", url=_URL, env="dev")
+    mgr_cfg = BusConfig(agent_id=f"pytest-heron-{run}", url=_URL, env="dev")
     async with (
         FleetBus(mgr_cfg) as mgr_bus,
         FleetBus(BusConfig(agent_id="pytest-workers", url=_URL)) as sub_bus,
@@ -120,7 +120,7 @@ async def test_e2e_dispatch_relay_done_proving_run() -> None:
 
         orch = Orchestrator(mgr_bus, _counter_clock())
         session = CoordinationSession(
-            task_id=task_id, channel=channel, manager="pytest-nagatha", workers=workers
+            task_id=task_id, channel=channel, manager="pytest-heron", workers=workers
         )
         # Manager watches worker status. Settle so every subscription is registered
         # on the server BEFORE any publish — core NATS has no backlog, so an

@@ -20,10 +20,10 @@ TASK = "t_grad51783562393"
 _FRAMES: list[dict[str, object]] = [
     {
         "ts": "2026-07-09T02:00:09.148173+00:00",
-        "subject": "dev.agent.dispatch.skippy",
+        "subject": "dev.agent.dispatch.wren",
         "action": "dispatch",
         "task_id": TASK,
-        "target": "skippy",
+        "target": "wren",
     },
     {
         "ts": "2026-07-09T02:01:14.039736+00:00",

@@ -3,7 +3,7 @@
 Deliberation between fleet agents happens over NATS, not Discord (Rico's
 ratified model). The subscriber already handles the *receive* side (dispatch →
 agent turn) and the *reply* side (turn text → status lane). What was missing is a
-way for the **manager** (Nagatha) to actively *say* something on the bus —
+way for the **manager** (Heron) to actively *say* something on the bus —
 summon a worker into a deliberation, pose a question, send steering — without a
 Discord mention.
 
@@ -73,7 +73,7 @@ FLEET_SEND_SCHEMA: dict[str, Any] = {
         "properties": {
             "to": {
                 "type": "string",
-                "description": "The target agent's id/name (e.g. 'bilby', 'skippy').",
+                "description": "The target agent's id/name (e.g. 'finch', 'wren').",
             },
             "text": {
                 "type": "string",

@@ -126,7 +126,7 @@ def _poller(
     bus: FakeBus,
     *,
     channel: str = "arena",
-    workers: tuple[str, ...] = ("bilby",),
+    workers: tuple[str, ...] = ("finch",),
     label: str = _MARKER,
     channels: ChannelMap | None = None,
 ) -> IntakePoller:
@@ -135,7 +135,7 @@ def _poller(
         lister,  # type: ignore[arg-type]  # duck-typed subset the poller uses
         bus,  # duck-typed publisher subset
         env="dev",
-        sender="nagatha",
+        sender="heron",
         default_workers=workers,
         channels=channels if channels is not None else empty_map(),
         home_channel=channel,
@@ -165,12 +165,12 @@ async def test_new_todo_card_publishes_created_exactly_once() -> None:
     assert _created_subjects(bus) == [subject]
     env = bus.published[0][1]
     assert env.task_id == "t-1"
-    assert env.sender == "nagatha"
+    assert env.sender == "heron"
     assert env.kind == "kboard_event"
     assert env.channel == "arena"
     # The default FakeTask carries only the scope marker as its title (fleet-bus
     # #54), so the assembled prompt text is that marker; the key is always present.
-    assert env.payload == {"channel": "arena", "workers": ["bilby"], "text": _MARKER}
+    assert env.payload == {"channel": "arena", "workers": ["finch"], "text": _MARKER}
 
 
 async def test_created_event_carries_card_title_and_body_as_text() -> None:
@@ -335,7 +335,7 @@ async def test_empty_channel_yields_unchannelled_envelope() -> None:
 
     env = bus.published[0][1]
     assert env.channel is None
-    assert env.payload == {"channel": "", "workers": ["bilby"], "text": _MARKER}
+    assert env.payload == {"channel": "", "workers": ["finch"], "text": _MARKER}
 
 
 # ---- card-scope filter (fleet-bus #54) --------------------------------------
@@ -749,8 +749,8 @@ async def test_a_wildcard_card_channel_is_refused_not_stamped() -> None:
     _, env = bus.published[0]
     assert env.channel == "arena"  # the board default, never "*"
     assert env.payload["channel"] == "arena"
-    assert subjects.agent_dispatch("dev", "skippy", channel=env.channel) == (
-        "dev.agent.arena.dispatch.skippy"
+    assert subjects.agent_dispatch("dev", "wren", channel=env.channel) == (
+        "dev.agent.arena.dispatch.wren"
     )
 
 

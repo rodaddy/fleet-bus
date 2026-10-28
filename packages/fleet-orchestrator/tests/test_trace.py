@@ -65,7 +65,7 @@ class _FakeBus:
 
 
 def _orchestrator() -> tuple[Orchestrator, _FakeBus]:
-    cfg = BusConfig(agent_id="nagatha", env="dev")
+    cfg = BusConfig(agent_id="heron", env="dev")
     bus = _FakeBus(cfg)
     ids = (f"m{i}" for i in itertools.count())
     clock = IdClock(new_id=lambda: next(ids), now=lambda: "2026-07-07T00:00:00Z")
@@ -76,8 +76,8 @@ def _session() -> CoordinationSession:
     return CoordinationSession(
         task_id="t-trace",
         channel="dash-dev",
-        manager="nagatha",
-        workers=("bilby", "skippy"),
+        manager="heron",
+        workers=("finch", "wren"),
         state=State.DISPATCHED,
     )
 
@@ -213,8 +213,8 @@ def test_record_json_omits_none_and_carries_only_sanctioned_keys() -> None:
         state="working",
         event="dispatch",
         action="dispatch",
-        target="bilby",
-        subject="dev.agent.dispatch.dash-dev.bilby",
+        target="finch",
+        subject="dev.agent.dispatch.dash-dev.finch",
     )
     data = json.loads(rec.as_json())
     assert set(data) == {"ts", "task_id", "state", "event", "action", "target", "subject"}
@@ -271,7 +271,7 @@ async def test_apply_emits_decision_and_dispatch_records() -> None:
     assert decisions[0].task_id == "t-trace"
     # fan-out to both workers → two op records whose subjects match the publishes
     assert [r.subject for r in ops] == [subject for subject, _ in bus.published]
-    assert {r.target for r in ops} == {"bilby", "skippy"}
+    assert {r.target for r in ops} == {"finch", "wren"}
 
 
 @pytest.mark.asyncio
@@ -284,7 +284,7 @@ async def test_trace_replays_to_the_same_state_path(tmp_path: Path) -> None:
     session = _session()
     for event in (
         Event(kind=EventKind.DISPATCH),
-        Event(kind=EventKind.HANDOFF_MISSING, relay_to="skippy", context={"note": "ctx"}),
+        Event(kind=EventKind.HANDOFF_MISSING, relay_to="wren", context={"note": "ctx"}),
         Event(kind=EventKind.RELAY_SENT),
         Event(kind=EventKind.DONE, outcome="completed"),
     ):
@@ -309,7 +309,7 @@ async def test_no_message_bodies_in_trace(tmp_path: Path) -> None:
     session = (await orch.apply(_session(), Event(kind=EventKind.DISPATCH))).session
     await orch.apply(
         session,
-        Event(kind=EventKind.HANDOFF_MISSING, relay_to="skippy", context={"note": secret_prose}),
+        Event(kind=EventKind.HANDOFF_MISSING, relay_to="wren", context={"note": secret_prose}),
     )
     assert secret_prose not in target.read_text(encoding="utf-8")
 
@@ -341,7 +341,7 @@ async def test_failed_publish_leaves_no_op_record() -> None:
     """A bus-op trace record must never claim a publish an exception prevented."""
     capture = _CaptureSink()
     trace.set_sink(capture)
-    cfg = BusConfig(agent_id="nagatha", env="dev")
+    cfg = BusConfig(agent_id="heron", env="dev")
     ids = itertools.count()
     clock = IdClock(new_id=lambda: f"m{next(ids)}", now=lambda: "2026-07-07T00:00:00Z")
     orch = Orchestrator(_ExplodingBus(cfg), clock)  # type: ignore[arg-type]
@@ -421,8 +421,8 @@ def test_langfuse_one_trace_per_task_span_per_record() -> None:
     """Records sharing a task_id reuse ONE trace id; each record makes one span."""
     client = _FakeLangfuse()
     sink = LangfuseTraceSink(client)
-    sink.emit(_rec("t-1", "dispatch", target="bilby", subject="dev.x"))
-    sink.emit(_rec("t-1", "relay", target="skippy"))
+    sink.emit(_rec("t-1", "dispatch", target="finch", subject="dev.x"))
+    sink.emit(_rec("t-1", "relay", target="wren"))
     sink.emit(_rec("t-1", "done", state="done"))
     # one trace id minted for the task (seeded from task_id), reused across records
     assert client.seeds == ["fleet-task::t-1"]
@@ -452,14 +452,14 @@ def test_langfuse_span_metadata_is_sanitized_only() -> None:
     """Only the closed coordination field set reaches the span — never a body."""
     client = _FakeLangfuse()
     LangfuseTraceSink(client).emit(
-        _rec("t-1", "dispatch", state="working", event="dispatch", target="bilby", subject="dev.s")
+        _rec("t-1", "dispatch", state="working", event="dispatch", target="finch", subject="dev.s")
     )
     meta = client.observations[0].kwargs["metadata"]
     assert meta == {
         "task_id": "t-1",
         "state": "working",
         "event": "dispatch",
-        "target": "bilby",
+        "target": "finch",
         "subject": "dev.s",
     }
     observation = client.observations[0]

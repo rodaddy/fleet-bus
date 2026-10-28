@@ -83,32 +83,32 @@ def _correlated_adapter(monkeypatch: pytest.MonkeyPatch, agent: str) -> tuple[An
 async def test_stance_without_done_survives_gate_and_reaches_circlejerk_detector(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    skippy, skippy_bus = _correlated_adapter(monkeypatch, "skippy")
-    bilby, bilby_bus = _correlated_adapter(monkeypatch, "bilby")
+    wren, wren_bus = _correlated_adapter(monkeypatch, "wren")
+    finch, finch_bus = _correlated_adapter(monkeypatch, "finch")
 
     # The bare ack no longer vanishes (#116): it lands on the ACK lane, which is
     # app-plane and which the scorekeeper below never reads. What matters for
     # scoring is unchanged — the ack contributes NO status envelope.
-    await skippy.send("dash-dev", "ack: checking the evidence")
+    await wren.send("dash-dev", "ack: checking the evidence")
     ack_subject = subjects.agent_ack("dev", "task-1", channel="dash-dev")
-    assert [subject for subject, _ in skippy_bus.published] == [ack_subject]
-    skippy_bus.published.clear()
+    assert [subject for subject, _ in wren_bus.published] == [ack_subject]
+    wren_bus.published.clear()
 
-    await skippy.send("dash-dev", _turn("Agreed with the proposal.", stance="agree"))
-    await bilby.send("dash-dev", _turn("I agree too.", stance="agree"))
+    await wren.send("dash-dev", _turn("Agreed with the proposal.", stance="agree"))
+    await finch.send("dash-dev", _turn("I agree too.", stance="agree"))
 
     status_subject = subjects.agent_status("dev", "task-1", channel="dash-dev")
-    assert [subject for subject, _ in skippy_bus.published] == [status_subject]
-    assert [subject for subject, _ in bilby_bus.published] == [status_subject]
+    assert [subject for subject, _ in wren_bus.published] == [status_subject]
+    assert [subject for subject, _ in finch_bus.published] == [status_subject]
 
     keeper = Scorekeeper(circlejerk_n=2)
-    assert keeper.observe(skippy_bus.published[0][1]) is None
-    event = keeper.observe(bilby_bus.published[0][1])
+    assert keeper.observe(wren_bus.published[0][1]) is None
+    event = keeper.observe(finch_bus.published[0][1])
 
     assert event is not None
     assert event.kind is ScoreEventKind.CIRCLEJERK_DETECTED
     assert event.run_length == 2
-    assert event.agents == ("bilby", "skippy")
+    assert event.agents == ("finch", "wren")
 
 
 async def test_stance_rides_typed_signal_across_the_wire_boundary(
@@ -118,15 +118,15 @@ async def test_stance_rides_typed_signal_across_the_wire_boundary(
     # typed_signal on the status envelope, and that typed signal — not the
     # payload.meta compatibility mirror — is what survives the REAL bus
     # serialize/deserialize boundary and drives orchestrator scoring.
-    skippy, skippy_bus = _correlated_adapter(monkeypatch, "skippy")
+    wren, wren_bus = _correlated_adapter(monkeypatch, "wren")
 
-    await skippy.send(
+    await wren.send(
         "dash-dev",
         _turn("The metric regressed.", stance="dissent", fact_pull=True),
     )
 
-    assert len(skippy_bus.published) == 1
-    subject, emitted = skippy_bus.published[0]
+    assert len(wren_bus.published) == 1
+    subject, emitted = wren_bus.published[0]
     assert subject == subjects.agent_status("dev", "task-1", channel="dash-dev")
 
     # Cross the real wire boundary: to_bytes → from_bytes, exactly what the bus
@@ -141,7 +141,7 @@ async def test_stance_rides_typed_signal_across_the_wire_boundary(
     received.payload.pop("meta")
     signal = parse_turn_signal(received)
     assert signal is not None
-    assert signal.agent_id == "skippy"
+    assert signal.agent_id == "wren"
     assert signal.task_id == "task-1"
     assert signal.stance is StancePosition.DISSENT
     assert signal.fact_pull is True
@@ -154,14 +154,14 @@ async def test_stance_rides_typed_signal_across_the_wire_boundary(
         env.payload.pop("meta")
         return env
 
-    skippy2, skippy2_bus = _correlated_adapter(monkeypatch, "skippy")
-    bilby, bilby_bus = _correlated_adapter(monkeypatch, "bilby")
-    await skippy2.send("dash-dev", _turn("Agreed.", stance="agree"))
-    await bilby.send("dash-dev", _turn("I agree too.", stance="agree"))
+    wren2, wren2_bus = _correlated_adapter(monkeypatch, "wren")
+    finch, finch_bus = _correlated_adapter(monkeypatch, "finch")
+    await wren2.send("dash-dev", _turn("Agreed.", stance="agree"))
+    await finch.send("dash-dev", _turn("I agree too.", stance="agree"))
 
     keeper = Scorekeeper(circlejerk_n=2)
-    assert keeper.observe(_wire_agree(skippy2_bus, 0)) is None
-    event = keeper.observe(_wire_agree(bilby_bus, 0))
+    assert keeper.observe(_wire_agree(wren2_bus, 0)) is None
+    event = keeper.observe(_wire_agree(finch_bus, 0))
     assert event is not None
     assert event.kind is ScoreEventKind.CIRCLEJERK_DETECTED
-    assert event.agents == ("bilby", "skippy")
+    assert event.agents == ("finch", "wren")

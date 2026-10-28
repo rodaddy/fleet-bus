@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Deterministic DAP coordination brain for the fleet — a pure state machine + bus-wired behaviors over fleet-nats. No LLM in the control path."
 # Floor 3.13 (fleet standard), matching fleet-nats.
 requires-python = ">=3.13"
+license = "MIT"
 dependencies = [
     "fleet-nats",   # workspace dep: the transport this orchestrator drives.
     "httpx>=0.28.1",

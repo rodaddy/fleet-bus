@@ -352,7 +352,7 @@ class Governor:
     def _pause(self, breach: Breach) -> Breach:
         self._paused[breach.task_id] = breach
         # Journal checkpoint line: task_id + which cap + the count-vs-cap at the
-        # breach, so the pause is diagnosable from the journal alone (Nagatha
+        # breach, so the pause is diagnosable from the journal alone (Heron
         # requirement #3). msgs is the live message counter for this task.
         logger.error(
             "orchestrator.governor | PAUSED task={} kind={} count={} cap={} reason={}",
@@ -449,13 +449,13 @@ class Governor:
         (app-level retry / reconnect re-send; transport is at-most-once, C5) for
         an already-resumed task is a no-op that returns ``False``. This includes
         budget-carrying resumes: the per-task cap is raised only when this call
-        actually clears a pause (Nagatha requirement #1, fleet-bus #59).
+        actually clears a pause (Heron requirement #1, fleet-bus #59).
 
         Args:
             task_id: The task to unpause.
             budget_msgs_add: Optional BOUNDED per-task cap increase — add exactly
                 this many messages to THIS task's effective cap (a steer's
-                "resume, and give it N more"; Nagatha requirement #2). Bounded and
+                "resume, and give it N more"; Heron requirement #2). Bounded and
                 per-task by construction: it never touches the shared cap or any
                 other task, and it can only ever RAISE this task's cap. Must be a
                 positive int; a non-positive add is a caller error. The bump is

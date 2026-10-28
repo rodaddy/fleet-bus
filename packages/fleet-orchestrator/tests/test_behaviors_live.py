@@ -53,7 +53,7 @@ async def test_live_dispatch_status_relay_roundtrip() -> None:
     # Unique subjects per run so parallel/re-runs don't cross-talk on the shared bus.
     run = _run_token()
     channel = f"pytest-orch-live-{run}"
-    workers = (f"pytest-skippy-{run}", f"pytest-bilby-{run}")
+    workers = (f"pytest-wren-{run}", f"pytest-finch-{run}")
     quiet_worker, relay_peer = workers
     task_id = f"live-t-{run}"
 
@@ -70,7 +70,7 @@ async def test_live_dispatch_status_relay_roundtrip() -> None:
         received_relay.append(env)
         got_relay.set()
 
-    mgr_cfg = BusConfig(agent_id=f"pytest-nagatha-{run}", url=_URL, env="dev")
+    mgr_cfg = BusConfig(agent_id=f"pytest-heron-{run}", url=_URL, env="dev")
     async with (
         FleetBus(mgr_cfg) as mgr_bus,
         FleetBus(BusConfig(agent_id="w", url=_URL)) as sub_bus,
@@ -84,7 +84,7 @@ async def test_live_dispatch_status_relay_roundtrip() -> None:
 
         orch = Orchestrator(mgr_bus, _counter_clock())
         session = CoordinationSession(
-            task_id=task_id, channel=channel, manager=f"pytest-nagatha-{run}", workers=workers
+            task_id=task_id, channel=channel, manager=f"pytest-heron-{run}", workers=workers
         )
         # Manager watches worker status. Settle so every subscription (dispatch,
         # relay, and the manager's status watch) is registered on the server
@@ -128,7 +128,7 @@ async def test_live_done_sentinel_advances_to_done() -> None:
 
     run = _run_token()
     task_id = f"pytest-done-live-{run}"
-    mgr_cfg = BusConfig(agent_id=f"pytest-nagatha-{run}", url=_URL, env="dev")
+    mgr_cfg = BusConfig(agent_id=f"pytest-heron-{run}", url=_URL, env="dev")
     async with (
         FleetBus(mgr_cfg) as mgr_bus,
         FleetBus(BusConfig(agent_id="worker", url=_URL)) as worker_bus,
@@ -137,7 +137,7 @@ async def test_live_done_sentinel_advances_to_done() -> None:
         session = CoordinationSession(
             task_id=task_id,
             channel=f"pytest-done-{run}",
-            manager=f"pytest-nagatha-{run}",
+            manager=f"pytest-heron-{run}",
             workers=(f"w-{run}",),
         )
         _, current = await orch.watch_worker_status(session.advanced_to(State.WORKING))
@@ -166,13 +166,13 @@ async def test_live_done_sentinel_advances_to_done() -> None:
 async def test_live_arbitrate_request_reply() -> None:
     run = _run_token()
     topic = f"pytest-who-goes-first-{run}"
-    mgr_cfg = BusConfig(agent_id=f"pytest-nagatha-{run}", url=_URL, env="dev")
+    mgr_cfg = BusConfig(agent_id=f"pytest-heron-{run}", url=_URL, env="dev")
     async with (
         FleetBus(mgr_cfg) as mgr_bus,
         FleetBus(BusConfig(agent_id="asker", url=_URL)) as ask_bus,
     ):
         orch = Orchestrator(mgr_bus, _counter_clock())
-        await orch.serve_arbitration(topic, ("skippy", "bilby"))
+        await orch.serve_arbitration(topic, ("wren", "finch"))
         await asyncio.sleep(0.3)
 
         reply = await ask_bus.request(
@@ -182,5 +182,5 @@ async def test_live_arbitrate_request_reply() -> None:
         )
 
     assert reply is not None
-    assert reply.payload["decision"] == "bilby"
+    assert reply.payload["decision"] == "finch"
     assert reply.correlation_id == "q"

@@ -85,7 +85,7 @@ def _install_fake_bus(monkeypatch: pytest.MonkeyPatch, fake: FakeBus) -> None:
     monkeypatch.setattr(fc, "FleetBus", lambda cfg: fake)
 
 
-def _manager_env(monkeypatch: pytest.MonkeyPatch, *, agent: str = "nagatha") -> None:
+def _manager_env(monkeypatch: pytest.MonkeyPatch, *, agent: str = "heron") -> None:
     monkeypatch.setenv("FLEET_AGENT_ID", agent)
     monkeypatch.setenv("FLEET_ENV", "dev")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://192.0.2.74:4222")
@@ -119,7 +119,7 @@ def test_manager_registers_the_tool(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_worker_role_gets_no_tool(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.setenv("FLEET_ROLE", "worker")
     ctx = StubCtx()
     registered = register_fleet_control(ctx)
@@ -129,7 +129,7 @@ def test_worker_role_gets_no_tool(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_unset_role_defaults_to_worker_no_tool(monkeypatch: pytest.MonkeyPatch) -> None:
     # Unset FLEET_ROLE → worker (least-capable default) → no governor lever.
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.delenv("FLEET_ROLE", raising=False)
     ctx = StubCtx()
     assert register_fleet_control(ctx) is False
@@ -142,8 +142,8 @@ def test_unset_role_defaults_to_worker_no_tool(monkeypatch: pytest.MonkeyPatch) 
 async def test_publish_shape_round_trips_through_parse_control(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _manager_env(monkeypatch, agent="nagatha")
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    _manager_env(monkeypatch, agent="heron")
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
 
     result = await fc._fleet_control(
@@ -157,7 +157,7 @@ async def test_publish_shape_round_trips_through_parse_control(
     # Published on the task's control lane the hub watches.
     assert subject == subjects.hub_control("dev", "t_42")
     assert env.kind == control.CONTROL_KIND
-    assert env.sender == "nagatha"
+    assert env.sender == "heron"
     # The frame parses back into a ControlOp — same contract the hub reads.
     parsed = control.parse_control(env)
     assert parsed is not None
@@ -174,7 +174,7 @@ async def test_publish_shape_round_trips_through_parse_control(
 
 async def test_pause_op_publishes(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
 
     result = await fc._fleet_control({"op": "pause", "task_id": "t_9"})
@@ -190,7 +190,7 @@ async def test_pause_op_publishes(monkeypatch: pytest.MonkeyPatch) -> None:
 
 async def test_budget_zero_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     result = await fc._fleet_control({"op": "resume", "task_id": "t_1", "budget_msgs_add": 0})
     assert "positive" in json.loads(result)["error"]
@@ -199,7 +199,7 @@ async def test_budget_zero_refused(monkeypatch: pytest.MonkeyPatch) -> None:
 
 async def test_budget_over_max_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     result = await fc._fleet_control(
         {"op": "resume", "task_id": "t_1", "budget_msgs_add": MAX_BUDGET_MSGS_ADD + 1}
@@ -210,7 +210,7 @@ async def test_budget_over_max_refused(monkeypatch: pytest.MonkeyPatch) -> None:
 
 async def test_budget_non_integer_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     result = await fc._fleet_control({"op": "resume", "task_id": "t_1", "budget_msgs_add": "lots"})
     assert "integer" in json.loads(result)["error"]
@@ -221,7 +221,7 @@ async def test_budget_on_pause_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     # A budget bump is a resume-only concept; asking for it on a pause is a
     # caller error, refused before any frame is published.
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     result = await fc._fleet_control({"op": "pause", "task_id": "t_1", "budget_msgs_add": 5})
     assert "resume" in json.loads(result)["error"]
@@ -231,7 +231,7 @@ async def test_budget_on_pause_refused(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_budget_at_max_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
     # The boundary is inclusive: exactly MAX is allowed.
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     await fc._fleet_control(
         {"op": "resume", "task_id": "t_1", "budget_msgs_add": MAX_BUDGET_MSGS_ADD}
@@ -246,7 +246,7 @@ async def test_budget_at_max_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
 
 async def test_unknown_op_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     result = await fc._fleet_control({"op": "yeet", "task_id": "t_1"})
     assert "op must be one of" in json.loads(result)["error"]
@@ -261,7 +261,7 @@ async def test_no_task_and_no_context_refuses_without_publishing(
 ) -> None:
     # No explicit task_id and no bus-turn context → structured refusal, no frame.
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     assert current_bus_task_id.get() is None
     result = await fc._fleet_control({"op": "resume"})
@@ -276,7 +276,7 @@ async def test_task_id_inherited_from_bus_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
 
     token = current_bus_task_id.set("t_ctx")
@@ -295,7 +295,7 @@ async def test_explicit_task_id_overrides_context(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
 
     token = current_bus_task_id.set("t_ctx")
@@ -335,7 +335,7 @@ async def test_publish_failure_returns_error_not_raise(
 ) -> None:
     _manager_env(monkeypatch)
     fake = FakeBus(
-        config=BusConfig.from_env("nagatha"),
+        config=BusConfig.from_env("heron"),
         publish_error=RuntimeError("bus wedged"),
     )
     _install_fake_bus(monkeypatch, fake)
@@ -350,7 +350,7 @@ async def test_connect_failure_returns_error_not_raise(
 ) -> None:
     _manager_env(monkeypatch)
     fake = FakeBus(
-        config=BusConfig.from_env("nagatha"),
+        config=BusConfig.from_env("heron"),
         connect_error=TimeoutError("server down"),
     )
     _install_fake_bus(monkeypatch, fake)
@@ -364,7 +364,7 @@ async def test_close_failure_still_returns_receipt(monkeypatch: pytest.MonkeyPat
     # it is logged (warning) and the successful steer still reports.
     _manager_env(monkeypatch)
     fake = FakeBus(
-        config=BusConfig.from_env("nagatha"),
+        config=BusConfig.from_env("heron"),
         close_error=RuntimeError("socket already gone"),
     )
     _install_fake_bus(monkeypatch, fake)
@@ -381,7 +381,7 @@ async def test_close_failure_still_returns_receipt(monkeypatch: pytest.MonkeyPat
 async def test_reason_omitted_from_payload_when_absent(monkeypatch: pytest.MonkeyPatch) -> None:
     # No reason → the frame is byte-identical to a pre-reason frame (backward compat).
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     await fc._fleet_control({"op": "resume", "task_id": "t_1"})
     _, env = fake.published[0]
@@ -399,7 +399,7 @@ async def test_mixed_case_dotted_task_id_slugged_consistently(
     # A mixed-case/dotted id must key the subject, payload, and receipt as ONE
     # slugged value — never subject=t-42 while payload/receipt carry "T.42".
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     result = await fc._fleet_control({"op": "resume", "task_id": "T.42"})
     subject, env = fake.published[0]
@@ -426,7 +426,7 @@ def test_toolset_shared_with_fleet_send() -> None:
 def test_register_raises_on_bad_role(monkeypatch: pytest.MonkeyPatch) -> None:
     # A typo'd FLEET_ROLE makes SubscriberRole.from_env raise — register_fleet_control
     # surfaces it (the adapter's register() catches it; see the guard test below).
-    monkeypatch.setenv("FLEET_AGENT_ID", "nagatha")
+    monkeypatch.setenv("FLEET_AGENT_ID", "heron")
     monkeypatch.setenv("FLEET_ROLE", "boss")  # not worker/manager
     ctx = StubCtx()
     with pytest.raises(ValueError, match="FLEET_ROLE"):
@@ -439,7 +439,7 @@ def test_adapter_register_survives_fleet_control_raising(monkeypatch: pytest.Mon
     # NOT abort register() — fleet_send (registered just before it) still lands.
     from fleet_subscriber import adapter as adapter_mod
 
-    monkeypatch.setenv("FLEET_AGENT_ID", "nagatha")
+    monkeypatch.setenv("FLEET_AGENT_ID", "heron")
     monkeypatch.setenv("FLEET_ROLE", "manager")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://192.0.2.74:4222")
 
@@ -469,13 +469,13 @@ def test_adapter_register_survives_fleet_control_raising(monkeypatch: pytest.Mon
 async def test_bad_bus_config_returns_error(monkeypatch: pytest.MonkeyPatch) -> None:
     # An invalid FLEET_ENV makes BusConfig.from_env raise → "bad bus config",
     # nothing published.
-    monkeypatch.setenv("FLEET_AGENT_ID", "nagatha")
+    monkeypatch.setenv("FLEET_AGENT_ID", "heron")
     monkeypatch.setenv("FLEET_ROLE", "manager")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://192.0.2.74:4222")
     monkeypatch.setenv("FLEET_ENV", "staging")  # not dev/prod
     # The tool's own BusConfig.from_env() will raise on the bad env; the fake's
     # config just needs to be a valid one (env defaults to dev).
-    fake = FakeBus(config=BusConfig(agent_id="nagatha"))
+    fake = FakeBus(config=BusConfig(agent_id="heron"))
     _install_fake_bus(monkeypatch, fake)
     result = await fc._fleet_control({"op": "resume", "task_id": "t_1"})
     assert "bad bus config" in json.loads(result)["error"]
@@ -492,7 +492,7 @@ async def test_two_sequential_calls_do_not_stash_task_id(
     # Off any bus turn, a first explicit-id call must not leave state that a second
     # (no-id) call inherits — the second must refuse, not reuse the first's id.
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     assert current_bus_task_id.get() is None
 

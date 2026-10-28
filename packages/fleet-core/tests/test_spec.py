@@ -26,10 +26,10 @@ def _sample() -> Envelope:
     return Envelope.new(
         msg_id="abc123",
         ts="2026-07-07T00:00:00Z",
-        sender="nagatha",
+        sender="heron",
         kind="dispatch",
         payload={"task": "review PR", "steps": [1, 2, 3]},
-        to="bilby",
+        to="finch",
         task_id="t_deadbeef",
         channel="all-agents",
         topic="review",
@@ -52,12 +52,12 @@ def test_roundtrip_preserves_all_wire_fields() -> None:
 def test_wire_uses_from_key_not_sender() -> None:
     raw = _sample().to_bytes()
 
-    assert b'"from":"nagatha"' in raw
+    assert b'"from":"heron"' in raw
     assert b'"sender"' not in raw
 
 
 def test_act_and_state_default_to_none_for_backward_compatibility() -> None:
-    env = Envelope.new(msg_id="x", ts="t", sender="skippy", kind="status")
+    env = Envelope.new(msg_id="x", ts="t", sender="wren", kind="status")
     restored = Envelope.from_bytes(env.to_bytes())
 
     assert restored.act is None
@@ -271,7 +271,7 @@ def test_to_bytes_rejects_non_finite_payload() -> None:
 def test_heartbeat_fields_match_live_identity_liveness_shape() -> None:
     beat = Heartbeat.model_validate(
         {
-            "agent_id": "bilby",
+            "agent_id": "finch",
             "role": "worker",
             "lanes": ["dispatch", "status"],
             "seq": 7,
@@ -284,7 +284,7 @@ def test_heartbeat_fields_match_live_identity_liveness_shape() -> None:
 
     dumped = beat.model_dump(mode="json")
 
-    assert dumped["agent_id"] == "bilby"
+    assert dumped["agent_id"] == "finch"
     assert dumped["role"] == "worker"
     assert dumped["lanes"] == ["dispatch", "status"]
     assert dumped["seq"] == 7
@@ -298,7 +298,7 @@ def test_heartbeat_jetstream_true_fails_validation() -> None:
     with pytest.raises(ValidationError):
         Heartbeat.model_validate(
             {
-                "agent_id": "bilby",
+                "agent_id": "finch",
                 "role": "worker",
                 "lanes": ["dispatch"],
                 "seq": 1,
@@ -311,11 +311,11 @@ def test_heartbeat_jetstream_true_fails_validation() -> None:
     "payload",
     [
         {"agent_id": "", "role": "worker", "lanes": ["dispatch"], "seq": 1},
-        {"agent_id": "bilby", "role": "", "lanes": ["dispatch"], "seq": 1},
-        {"agent_id": "bilby", "role": "worker", "lanes": [""], "seq": 1},
-        {"agent_id": "bilby", "role": "worker", "lanes": ["dispatch"], "seq": -1},
+        {"agent_id": "finch", "role": "", "lanes": ["dispatch"], "seq": 1},
+        {"agent_id": "finch", "role": "worker", "lanes": [""], "seq": 1},
+        {"agent_id": "finch", "role": "worker", "lanes": ["dispatch"], "seq": -1},
         {
-            "agent_id": "bilby",
+            "agent_id": "finch",
             "role": "worker",
             "lanes": ["dispatch"],
             "seq": 1,
@@ -330,12 +330,12 @@ def test_heartbeat_rejects_malformed_hard_fields(payload: dict[str, object]) -> 
 
 def test_presence_serializes_explicit_heartbeat_shape() -> None:
     presence = Presence.model_validate(
-        {"agent_id": "skippy", "role": "manager", "lanes": ["control"], "seq": 0}
+        {"agent_id": "wren", "role": "manager", "lanes": ["control"], "seq": 0}
     )
 
     dumped = presence.model_dump(mode="json")
 
-    assert dumped["agent_id"] == "skippy"
+    assert dumped["agent_id"] == "wren"
     assert dumped["role"] == "manager"
     assert dumped["lanes"] == ["control"]
     assert dumped["jetstream"] is False
@@ -347,7 +347,7 @@ def test_stance_position_vocabulary_and_aliases() -> None:
             "stance": "DISSENT",
             "fact_pull": True,
             "reason": "metric was stale",
-            "needs_from": ["skippy"],
+            "needs_from": ["wren"],
             "trace_id": "tr-1",
         }
     )
@@ -362,7 +362,7 @@ def test_stance_position_vocabulary_and_aliases() -> None:
     assert dumped["stance"] == "dissent"
     assert dumped["fact_pull"] is True
     assert dumped["reason"] == "metric was stale"
-    assert dumped["needs_from"] == ["skippy"]
+    assert dumped["needs_from"] == ["wren"]
     assert dumped["trace_id"] == "tr-1"
 
 
@@ -400,8 +400,8 @@ def test_done_rejects_empty_hard_fields(payload: dict[str, object]) -> None:
 
 def test_heartbeat_and_presence_own_the_jetstream_false_field() -> None:
     """The ephemeral exception is a typed field on the signal model, not prose."""
-    hb = Heartbeat(agent_id="nagatha", role="agent", lanes=("dev.all",), seq=0)
-    pr = Presence(agent_id="nagatha", role="agent", lanes=("dev.all",), seq=0)
+    hb = Heartbeat(agent_id="heron", role="agent", lanes=("dev.all",), seq=0)
+    pr = Presence(agent_id="heron", role="agent", lanes=("dev.all",), seq=0)
     assert hb.jetstream is False
     assert pr.jetstream is False
 

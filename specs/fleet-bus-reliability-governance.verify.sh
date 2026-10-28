@@ -457,7 +457,7 @@ check_if "packages/fleet-nats/src/fleet_nats/tokencost.py" "P4 contract document
 check_if "packages/fleet-nats/src/fleet_nats/tokencost.py" "P4 schema carries counts, never content" \
     no_banned_words packages/fleet-nats/src/fleet_nats/tokencost.py "\\b(prompt_text|completion_text|content)\\b"
 
-echo "== Phase 5 (#13): governor + Nagatha narrates =="
+echo "== Phase 5 (#13): governor + Heron narrates =="
 check_pytest "packages/fleet-orchestrator/.venv/bin/python" \
     "P5 budget breach -> forced surface + pause" "packages/fleet-orchestrator" "governor"
 check_pytest "packages/fleet-orchestrator/.venv/bin/python" \

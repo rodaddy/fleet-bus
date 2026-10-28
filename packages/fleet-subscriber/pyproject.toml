@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Per-agent Hermes NATS subscriber plugin — turns an inbound fleet-bus envelope into a real agent turn whose own words post to Discord. Uses the register_platform lever (never teams_pipeline)."
 # Floor 3.13 (fleet standard), matching fleet-nats.
 requires-python = ">=3.13"
+license = "MIT"
 dependencies = [
     "fleet-nats",   # workspace dep: the transport this subscriber consumes.
     "loguru>=0.7",  # sanitized structured logging, written in as each module is built.

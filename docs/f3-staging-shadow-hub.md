@@ -6,7 +6,7 @@
 > Its acceptance receipt says so explicitly: *"This closes against the
 > superseding all-dev controller decision in the prior comment, not the obsolete
 > prod/staging/new-LXC wording."* What actually shipped was a **3-node all-dev
-> coordination cluster on existing nodes** — Bilby `192.0.2.71`, Dash
+> coordination cluster on existing nodes** — Finch `192.0.2.71`, Dash
 > `192.0.2.62`, node-c `192.0.2.21`, on dedicated ports `4223/6223/8223`, with
 > the existing `4222/8222` services left untouched.
 >
@@ -333,9 +333,9 @@ staging server means the hub **cannot connect** — both are intentional:
 FLEET_NATS_URL=nats://<STAGING_HOST>:4222   # the SEPARATE box — never fleet-hub
 FLEET_ENV=staging                           # REQUIRED (from_env fails loud if missing)
 FLEET_NATS_CREDS=/etc/fleet-bus/staging.creds  # F2 (#104); deployed from Vaultwarden, chmod 600
-FLEET_AGENT_ID=nagatha
-FLEET_MANAGER_ID=nagatha
-FLEET_WORKERS=skippy,bilby
+FLEET_AGENT_ID=heron
+FLEET_MANAGER_ID=heron
+FLEET_WORKERS=wren,finch
 ```
 
 > **`FLEET_NATS_CREDS` value is a secret path, deployed at provision time — never
@@ -414,7 +414,7 @@ FLEET_STAGING_NATS_URL=nats://<STAGING_HOST>:4222 \
 FLEET_STAGING_MONITOR_URL=http://<STAGING_HOST>:8223 \
 FLEET_PROD_MONITOR_URL=http://192.0.2.74:8223 \
 FLEET_DRILL_PYTHON=/opt/fleet-bus/.venv/bin/python \
-FLEET_DRILL_WORKER=skippy \
+FLEET_DRILL_WORKER=wren \
 FLEET_DRILL_ID=staging-drill \
     sh specs/staging-isolation-drill.sh
 ```

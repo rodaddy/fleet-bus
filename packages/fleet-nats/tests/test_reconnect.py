@@ -28,13 +28,13 @@ _NATS_SERVER = shutil.which("nats-server")
 def test_reconnect_knobs_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("FLEET_RECONNECT_MAX", raising=False)
     monkeypatch.delenv("FLEET_RECONNECT_WAIT_SECONDS", raising=False)
-    cfg = BusConfig.from_env("bilby")
+    cfg = BusConfig.from_env("finch")
     assert cfg.max_reconnect_attempts == -1  # unlimited-with-backoff default
     assert cfg.reconnect_wait_s == 2.0
 
     monkeypatch.setenv("FLEET_RECONNECT_MAX", "17")
     monkeypatch.setenv("FLEET_RECONNECT_WAIT_SECONDS", "5")
-    cfg = BusConfig.from_env("bilby")
+    cfg = BusConfig.from_env("finch")
     assert cfg.max_reconnect_attempts == 17
     assert cfg.reconnect_wait_s == 5
 
@@ -42,19 +42,19 @@ def test_reconnect_knobs_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_reconnect_knobs_fail_loud_on_junk(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FLEET_RECONNECT_MAX", "lots")
     with pytest.raises(ValueError, match="FLEET_RECONNECT_MAX must be an integer"):
-        BusConfig.from_env("bilby")
+        BusConfig.from_env("finch")
     monkeypatch.delenv("FLEET_RECONNECT_MAX", raising=False)
 
     monkeypatch.setenv("FLEET_RECONNECT_WAIT_SECONDS", "soon")
     with pytest.raises(ValueError, match="FLEET_RECONNECT_WAIT_SECONDS must be an integer"):
-        BusConfig.from_env("bilby")
+        BusConfig.from_env("finch")
 
 
 def test_reconnect_knob_bounds_validated() -> None:
     with pytest.raises(ValueError, match="max_reconnect_attempts"):
-        BusConfig(agent_id="bilby", max_reconnect_attempts=-2)
+        BusConfig(agent_id="finch", max_reconnect_attempts=-2)
     with pytest.raises(ValueError, match="reconnect_wait_s"):
-        BusConfig(agent_id="bilby", reconnect_wait_s=0)
+        BusConfig(agent_id="finch", reconnect_wait_s=0)
 
 
 @pytest.mark.asyncio

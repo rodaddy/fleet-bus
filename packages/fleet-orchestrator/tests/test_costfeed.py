@@ -10,7 +10,7 @@ from fleet_orchestrator.costfeed import CostLedger, sum_task_cost
 
 def _cost(
     *,
-    agent_id: str = "bilby",
+    agent_id: str = "finch",
     task_id: str = "task-42",
     turn_id: str = "turn-1",
     prompt_tokens: int = 100,
@@ -35,7 +35,7 @@ def test_costfeed_two_turns_same_task_accumulate() -> None:
     assert ledger.observe(_cost(turn_id="turn-2", prompt_tokens=80, completion_tokens=20))
 
     assert ledger.task_total("task-42") == 250
-    assert ledger.agent_total("bilby") == 250
+    assert ledger.agent_total("finch") == 250
 
 
 def test_costfeed_other_tasks_excluded_from_total() -> None:
@@ -51,11 +51,11 @@ def test_costfeed_other_tasks_excluded_from_total() -> None:
 
 def test_costfeed_malformed_event_logged_and_skipped() -> None:
     ledger = CostLedger()
-    malformed = Envelope.new(msg_id="bad", ts="t", sender="bilby", kind="status", payload={})
+    malformed = Envelope.new(msg_id="bad", ts="t", sender="finch", kind="status", payload={})
 
     assert ledger.observe(malformed) is None
     assert ledger.task_total("task-42") == 0
-    assert ledger.agent_total("bilby") == 0
+    assert ledger.agent_total("finch") == 0
 
 
 def test_costfeed_duplicate_turn_is_summed_once() -> None:
@@ -68,7 +68,7 @@ def test_costfeed_duplicate_turn_is_summed_once() -> None:
     assert ledger.observe(env) is not None  # first sight: parsed + summed
     assert ledger.observe(env) is None  # duplicate: parsed-fine no-op, not summed
     assert ledger.task_total("task-42") == 150
-    assert ledger.agent_total("bilby") == 150
+    assert ledger.agent_total("finch") == 150
 
 
 def test_costfeed_distinct_turns_same_task_are_not_deduped() -> None:
@@ -153,7 +153,7 @@ def test_task_snapshot_serializes_spend_and_seen_turns() -> None:
     assert snap["tokens"] == 250
     # (agent_key, turn_id) pairs for THIS task only — carries the agent so a
     # restored dedup key matches a live agent-scoped redelivery.
-    assert snap["seen_turns"] == [["bilby", "turn-1"], ["bilby", "turn-2"]]
+    assert snap["seen_turns"] == [["finch", "turn-1"], ["finch", "turn-2"]]
 
 
 def test_task_snapshot_empty_task_is_wellformed() -> None:
@@ -213,22 +213,22 @@ def test_restore_task_rejects_negative_tokens() -> None:
 @pytest.mark.parametrize("tokens", ["900", True, 1.5])
 def test_restore_task_rejects_wrong_typed_tokens_without_partial_mutation(tokens: object) -> None:
     ledger = CostLedger()
-    ledger.restore_task("task-42", {"tokens": 100, "seen_turns": [["bilby", "turn-1"]]})
+    ledger.restore_task("task-42", {"tokens": 100, "seen_turns": [["finch", "turn-1"]]})
 
     with pytest.raises(TypeError, match="tokens must be an int"):
-        ledger.restore_task("task-42", {"tokens": tokens, "seen_turns": [["bilby", "turn-2"]]})
+        ledger.restore_task("task-42", {"tokens": tokens, "seen_turns": [["finch", "turn-2"]]})
 
     assert ledger.task_total("task-42") == 100
-    assert ledger.task_snapshot("task-42")["seen_turns"] == [["bilby", "turn-1"]]
+    assert ledger.task_snapshot("task-42")["seen_turns"] == [["finch", "turn-1"]]
 
 
 @pytest.mark.parametrize(
     "seen_turns",
     [
         [[123, "turn-1"]],
-        [["bilby", 123]],
-        [["bilby"]],
-        [["bilby", "turn-1", "extra"]],
+        [["finch", 123]],
+        [["finch"]],
+        [["finch", "turn-1", "extra"]],
         [123],
         [True],
     ],
@@ -237,13 +237,13 @@ def test_restore_task_rejects_malformed_seen_turns_without_partial_mutation(
     seen_turns: object,
 ) -> None:
     ledger = CostLedger()
-    ledger.restore_task("task-42", {"tokens": 100, "seen_turns": [["bilby", "turn-1"]]})
+    ledger.restore_task("task-42", {"tokens": 100, "seen_turns": [["finch", "turn-1"]]})
 
     with pytest.raises(TypeError, match="seen_turns"):
         ledger.restore_task("task-42", {"tokens": 200, "seen_turns": seen_turns})
 
     assert ledger.task_total("task-42") == 100
-    assert ledger.task_snapshot("task-42")["seen_turns"] == [["bilby", "turn-1"]]
+    assert ledger.task_snapshot("task-42")["seen_turns"] == [["finch", "turn-1"]]
 
 
 def test_restore_task_preserves_legacy_bare_turn_id_strings() -> None:

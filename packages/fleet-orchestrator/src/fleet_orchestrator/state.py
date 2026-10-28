@@ -117,8 +117,8 @@ class CoordinationSession:
     Attributes:
         task_id: The k-board task id this session coordinates.
         channel: Originating Discord channel slug (per-channel isolation).
-        manager: The manager ``agent_id`` (e.g. ``nagatha``).
-        workers: The worker ``agent_id``\\ s on this task (e.g. skippy, bilby).
+        manager: The manager ``agent_id`` (e.g. ``heron``).
+        workers: The worker ``agent_id``\\ s on this task (e.g. wren, finch).
         state: Current :class:`State`.
         relay_target: When in ``RELAY_NEEDED``, the peer awaiting the relay.
         relay_context: The missed-handoff payload to relay to ``relay_target``.

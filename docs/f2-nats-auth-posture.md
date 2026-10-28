@@ -107,7 +107,7 @@ Derived from `fleet_nats.subjects` usage per component
 Everything **not** listed as allow is **denied** (server default-deny). `{self}`
 = that principal's own agent id.
 
-### 4a. Worker agent (e.g. Skippy, Bilby-as-worker) — least-capable
+### 4a. Worker agent (e.g. Wren, Finch-as-worker) — least-capable
 
 | Direction | Subject pattern | Builder | Why |
 |---|---|---|---|
@@ -139,7 +139,7 @@ Everything **not** listed as allow is **denied** (server default-deny). `{self}`
 > only to the reply subject carried by the request, including the worker's
 > principal-scoped inbox.
 
-### 4b. Manager / orchestrator (Nagatha)
+### 4b. Manager / orchestrator (Heron)
 
 | Direction | Subject pattern | Builder | Why |
 |---|---|---|---|
@@ -161,7 +161,7 @@ Everything **not** listed as allow is **denied** (server default-deny). `{self}`
 | PUB | `allow_responses: true` (server permission, not a subject) | — (nats-py) | **responder side of request/reply**: lets the manager reply to a worker's `claim`/`arbitrate` on the requester's dynamic `_INBOX` reply subject (`bus.py` `reply()` → `nc.publish(msg.reply, …)`). Preferred over a static `_INBOX.>` publish grant — the server auto-scopes a one-shot publish to exactly the reply subject of a request it received |
 | **DENY** | `{env}.agent.status.{task}` (publish) | — | status is the worker's voice; manager reads, never writes it |
 
-### 4c. Hub / control-plane publisher (harness, Nagatha-side steer — #59)
+### 4c. Hub / control-plane publisher (harness, Heron-side steer — #59)
 
 | Direction | Subject pattern | Builder | Why |
 |---|---|---|---|
@@ -246,7 +246,7 @@ silently lost.
   attribution from the credential — attribution comes from `job_id` in the
   subject, which is **not** authenticated.
 - **On-host `.creds` path convention:** the canonical location is
-  `/etc/fleet-bus/creds/<agent>.creds` (e.g. `/etc/fleet-bus/creds/nagatha.creds`),
+  `/etc/fleet-bus/creds/<agent>.creds` (e.g. `/etc/fleet-bus/creds/heron.creds`),
   owner = the agent's service user, **mode `0600`** (readable only by that user).
   `FLEET_NATS_CREDS` points at exactly this path. Keeping every agent's creds at a
   stable, per-agent path is what makes the "swap at the same path" hot-swap below
@@ -270,7 +270,7 @@ silently lost.
 
 ## 6. Rollout order (mixed-fleet safe, fail-closed)
 
-The fleet is mixed-version (per `pyproject` notes: Nagatha on 3.13, Bilby/Skippy
+The fleet is mixed-version (per `pyproject` notes: Heron on 3.13, Finch/Wren
 rollout pending). Enforcement must not take the fleet offline. Mixed-fleet
 safety comes from order, never an anonymous server seat. Ordered:
 

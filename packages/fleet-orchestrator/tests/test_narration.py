@@ -29,8 +29,8 @@ def _session() -> CoordinationSession:
     return CoordinationSession(
         task_id="t-1",
         channel="dash-dev",
-        manager="nagatha",
-        workers=("skippy", "bilby"),
+        manager="heron",
+        workers=("wren", "finch"),
         state=State.WORKING,
     )
 
@@ -39,28 +39,28 @@ def _narrator(bus: _RecordingBus | _ExplodingBus) -> Narrator:
     ids = (f"n{i}" for i in itertools.count())
     times = (f"2026-07-08T00:00:{i:02d}Z" for i in itertools.count())
     return Narrator(
-        bus, env="dev", manager="nagatha", new_id=lambda: next(ids), now=lambda: next(times)
+        bus, env="dev", manager="heron", new_id=lambda: next(ids), now=lambda: next(times)
     )
 
 
 async def test_narration_publishes_only_on_the_manager_inbox_lane() -> None:
     bus = _RecordingBus()
     narrator = _narrator(bus)
-    await narrator.narrate(_session(), "dispatched", target="bilby")
+    await narrator.narrate(_session(), "dispatched", target="finch")
     await narrator.narrate(_session(), "done", outcome="completed")
     lanes = {subject for subject, _ in bus.published}
-    assert lanes == {subjects.agent_inbox("dev", "nagatha")}
+    assert lanes == {subjects.agent_inbox("dev", "heron")}
     for _, env in bus.published:
         assert env.kind == NARRATION_KIND
-        assert env.sender == "nagatha"
+        assert env.sender == "heron"
         assert env.channel == "dash-dev"
 
 
 async def test_narration_text_is_templated_metadata_never_prose() -> None:
     bus = _RecordingBus()
-    await _narrator(bus).narrate(_session(), "dispatched", target="bilby")
+    await _narrator(bus).narrate(_session(), "dispatched", target="finch")
     _, env = bus.published[0]
-    assert env.payload == {"text": "[t-1] dispatched to bilby — coordination started."}
+    assert env.payload == {"text": "[t-1] dispatched to finch — coordination started."}
 
 
 def test_narration_templates_are_a_closed_set() -> None:
@@ -74,10 +74,10 @@ def test_fleet_liveness_beats_render() -> None:
     # The task-independent fleet-liveness keys (fleet-bus #78) render with the
     # synthetic "fleet" task id and the agent as target; the closed-set invariant
     # (above) still rejects an unknown beat.
-    silent = render_narration("fleet_silent", task_id="fleet", target="bilby", detail="3 sweeps")
-    assert silent == "[fleet] bilby missing from the bus — silent 3 sweeps."
-    present = render_narration("fleet_present", task_id="fleet", target="bilby")
-    assert present == "[fleet] bilby back on the bus."
+    silent = render_narration("fleet_silent", task_id="fleet", target="finch", detail="3 sweeps")
+    assert silent == "[fleet] finch missing from the bus — silent 3 sweeps."
+    present = render_narration("fleet_present", task_id="fleet", target="finch")
+    assert present == "[fleet] finch back on the bus."
 
 
 def test_canary_failed_beat_renders_target_and_reason() -> None:
@@ -94,7 +94,7 @@ def test_canary_failed_beat_renders_target_and_reason() -> None:
 
 async def test_narration_publish_failure_is_swallowed() -> None:
     """Narration must never take coordination down — log and continue."""
-    await _narrator(_ExplodingBus()).narrate(_session(), "woken", target="bilby")
+    await _narrator(_ExplodingBus()).narrate(_session(), "woken", target="finch")
 
 
 def test_narration_is_never_originated_by_the_subscriber_package() -> None:

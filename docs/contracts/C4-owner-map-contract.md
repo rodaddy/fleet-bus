@@ -23,7 +23,7 @@ The owner-map turns "who does what" from an emergent race into a manager-declare
 Example channel rendering from the plan of record:
 
 ```
-@Nagatha: clones · @Skippy: NATS brief · @Bilby: deploy diag
+@Heron: clones · @Wren: NATS brief · @Finch: deploy diag
 ```
 
 ---
@@ -89,7 +89,7 @@ The visible channel post is a deterministic render of the same object. The rende
   the lane's `scope` verbatim.
 
 ```
-@Nagatha: clones · @Skippy: NATS brief · @Bilby: deploy diag
+@Heron: clones · @Wren: NATS brief · @Finch: deploy diag
 ```
 
 The rendering is a **projection** of the schema, never an independent source of allocation. The

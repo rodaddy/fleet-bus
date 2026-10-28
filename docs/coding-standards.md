@@ -8,21 +8,12 @@ must be small, targeted, testable, and typed.
 Read this document into context at the start of every working session before
 touching code.
 
-## Root instruction files: CLAUDE.md is canonical
-
-`CLAUDE.md` and `AGENTS.md` are two byte-identical real files, NOT symlinks.
-
-- **Edit only `CLAUDE.md`.** The `.githooks/pre-commit` hook copies it to
-  `AGENTS.md` and stages the copy, so both land in the same commit.
-- Direct edits to `AGENTS.md` are blocked by the hook when the files differ.
-- Symlinks are banned in this repo.
-
 ## Branch discipline: never work in main
 
 `main` is pass-through only — merge, pull, leave. After any merge or pull that
 lands you on main, immediately switch to a work branch. Branches describe the
 work, not the agent (`feat/walking-skeleton`, `fix/composer-slot-order`, never
-`bilby/*` or `agent/*`). All changes merge via PR.
+`finch/*` or `agent/*`). All changes merge via PR.
 
 ## Source layout
 

@@ -71,12 +71,12 @@ def test_reporter_rejects_empty_roster() -> None:
 
 def test_reporter_rejects_non_positive_consecutive() -> None:
     with pytest.raises(ValueError, match="consecutive must be positive"):
-        _reporter(expected=("bilby",), consecutive=0)
+        _reporter(expected=("finch",), consecutive=0)
 
 
 def test_reporter_rejects_non_positive_interval() -> None:
     with pytest.raises(ValueError, match="interval_s must be positive"):
-        FleetLivenessReporter(expected=("bilby",), interval_s=0.0, consecutive=3)
+        FleetLivenessReporter(expected=("finch",), interval_s=0.0, consecutive=3)
 
 
 # ---- the sweep state machine -----------------------------------------------
@@ -84,8 +84,8 @@ def test_reporter_rejects_non_positive_interval() -> None:
 
 def test_fresh_agent_never_narrates() -> None:
     tracker = LivenessTracker()
-    tracker.observe(_heartbeat("bilby"), now=0.0)
-    reporter = _reporter(expected=("bilby",), consecutive=3)
+    tracker.observe(_heartbeat("finch"), now=0.0)
+    reporter = _reporter(expected=("finch",), consecutive=3)
 
     # Still fresh across several sweeps — never crosses the staleness window.
     for now in (1.0, 5.0, 20.0):
@@ -94,8 +94,8 @@ def test_fresh_agent_never_narrates() -> None:
 
 def test_below_threshold_is_silent() -> None:
     tracker = LivenessTracker()
-    tracker.observe(_heartbeat("bilby"), now=0.0)
-    reporter = _reporter(expected=("bilby",), consecutive=3)
+    tracker.observe(_heartbeat("finch"), now=0.0)
+    reporter = _reporter(expected=("finch",), consecutive=3)
 
     # Two silent sweeps (past the staleness window) — under the threshold of 3.
     now = _STALE_AFTER + 1.0  # stale
@@ -106,8 +106,8 @@ def test_below_threshold_is_silent() -> None:
 
 def test_n_consecutive_stale_fires_exactly_one_missing() -> None:
     tracker = LivenessTracker()
-    tracker.observe(_heartbeat("bilby"), now=0.0)
-    reporter = _reporter(expected=("bilby",), consecutive=3)
+    tracker.observe(_heartbeat("finch"), now=0.0)
+    reporter = _reporter(expected=("finch",), consecutive=3)
 
     now = _STALE_AFTER + 1.0
     assert reporter.sweep(now=now, is_stale=_stale_check(tracker, now)) == []  # 1 silent
@@ -116,7 +116,7 @@ def test_n_consecutive_stale_fires_exactly_one_missing() -> None:
     now += 1.0
     fired = reporter.sweep(now=now, is_stale=_stale_check(tracker, now))  # 3 silent -> alarm
     assert len(fired) == 1
-    assert fired[0].agent == "bilby"
+    assert fired[0].agent == "finch"
     assert fired[0].kind == TransitionKind.MISSING
     assert fired[0].silent_sweeps == 3
 
@@ -129,8 +129,8 @@ def test_n_consecutive_stale_fires_exactly_one_missing() -> None:
 
 def test_recovery_after_missing_fires_exactly_one_recovered() -> None:
     tracker = LivenessTracker()
-    tracker.observe(_heartbeat("bilby"), now=0.0)
-    reporter = _reporter(expected=("bilby",), consecutive=2)
+    tracker.observe(_heartbeat("finch"), now=0.0)
+    reporter = _reporter(expected=("finch",), consecutive=2)
 
     now = _STALE_AFTER + 1.0
     reporter.sweep(now=now, is_stale=_stale_check(tracker, now))  # 1 silent
@@ -140,10 +140,10 @@ def test_recovery_after_missing_fires_exactly_one_recovered() -> None:
 
     # A fresh beat arrives — the tracker sees the agent again (last_seen=now).
     now += 1.0
-    tracker.observe(_heartbeat("bilby", seq=2), now=now)
+    tracker.observe(_heartbeat("finch", seq=2), now=now)
     recovered = reporter.sweep(now=now, is_stale=_stale_check(tracker, now))
     assert len(recovered) == 1
-    assert recovered[0].agent == "bilby"
+    assert recovered[0].agent == "finch"
     assert recovered[0].kind == TransitionKind.RECOVERED
 
     # Latch cleared: a following fresh sweep narrates nothing (no repeat recovered).
@@ -153,15 +153,15 @@ def test_recovery_after_missing_fires_exactly_one_recovered() -> None:
 
 def test_flap_under_threshold_never_narrates_recovery() -> None:
     tracker = LivenessTracker()
-    tracker.observe(_heartbeat("bilby"), now=0.0)
-    reporter = _reporter(expected=("bilby",), consecutive=3)
+    tracker.observe(_heartbeat("finch"), now=0.0)
+    reporter = _reporter(expected=("finch",), consecutive=3)
 
     # One silent sweep (below threshold) then a fresh beat: never reported missing,
     # so the recovery is silent too — a sub-threshold flap makes NO noise.
     now = _STALE_AFTER + 1.0
     assert reporter.sweep(now=now, is_stale=_stale_check(tracker, now)) == []
     now += 1.0
-    tracker.observe(_heartbeat("bilby", seq=2), now=now)
+    tracker.observe(_heartbeat("finch", seq=2), now=now)
     assert reporter.sweep(now=now, is_stale=_stale_check(tracker, now)) == []
 
 
@@ -184,19 +184,19 @@ def test_never_seen_expected_agent_is_treated_as_silent() -> None:
 
 def test_sweep_is_per_agent_independent() -> None:
     tracker = LivenessTracker()
-    tracker.observe(_heartbeat("bilby"), now=0.0)
-    tracker.observe(_heartbeat("skippy"), now=0.0)
-    reporter = _reporter(expected=("bilby", "skippy"), consecutive=2)
+    tracker.observe(_heartbeat("finch"), now=0.0)
+    tracker.observe(_heartbeat("wren"), now=0.0)
+    reporter = _reporter(expected=("finch", "wren"), consecutive=2)
 
-    # bilby keeps beating; skippy goes dark.
+    # finch keeps beating; wren goes dark.
     now = _STALE_AFTER + 1.0
-    tracker.observe(_heartbeat("bilby", seq=2), now=now)
-    assert reporter.sweep(now=now, is_stale=_stale_check(tracker, now)) == []  # skippy 1 silent
+    tracker.observe(_heartbeat("finch", seq=2), now=now)
+    assert reporter.sweep(now=now, is_stale=_stale_check(tracker, now)) == []  # wren 1 silent
     now += 1.0
-    tracker.observe(_heartbeat("bilby", seq=3), now=now)
-    fired = reporter.sweep(now=now, is_stale=_stale_check(tracker, now))  # skippy 2 -> missing
+    tracker.observe(_heartbeat("finch", seq=3), now=now)
+    fired = reporter.sweep(now=now, is_stale=_stale_check(tracker, now))  # wren 2 -> missing
     assert len(fired) == 1
-    assert fired[0].agent == "skippy"
+    assert fired[0].agent == "wren"
 
 
 # ---- env helpers (fail-loud) -----------------------------------------------
@@ -219,8 +219,8 @@ def test_enabled_from_env_rejects_junk(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_expected_from_env_parses_roster(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FLEET_EXPECTED_AGENTS", " skippy, bilby ,nagatha ")
-    assert expected_from_env() == ("skippy", "bilby", "nagatha")
+    monkeypatch.setenv("FLEET_EXPECTED_AGENTS", " wren, finch ,heron ")
+    assert expected_from_env() == ("wren", "finch", "heron")
 
 
 def test_expected_from_env_empty_when_unset(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -8,7 +8,7 @@ that the running hub consumes and turns into a live ``Governor.resume`` /
 graduation runs a Discord steer ("resume the run and raise the budget") only
 landed because a harness injected the control frame
 (``injectors/governor-resume.py``). In production **nothing** maps a manager's
-steer to a control op — the manager (Nagatha) sees the PAUSED narration beat in
+steer to a control op — the manager (Heron) sees the PAUSED narration beat in
 Discord but has no lever to pull.
 
 This tool is that lever. It publishes via the EXISTING

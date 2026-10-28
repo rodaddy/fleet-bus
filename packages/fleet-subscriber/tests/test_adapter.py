@@ -148,9 +148,9 @@ def _assert_noise_only(
 def _adapter(
     monkeypatch: pytest.MonkeyPatch,
     *,
-    agent: str = "skippy",
+    agent: str = "wren",
     role: str | None = None,
-    home_channel: str | None = "skippy-home",
+    home_channel: str | None = "wren-home",
 ) -> tuple[Any, FakeBus]:
     monkeypatch.setenv("FLEET_AGENT_ID", agent)
     monkeypatch.setenv("FLEET_ENV", "dev")
@@ -211,32 +211,32 @@ async def test_worker_connect_subscribes_to_all_four_lanes(monkeypatch: pytest.M
     # matching). dispatch has always been scoped; relay and wake joined it in
     # #117, so they carry wildcards too. inbox addresses an AGENT, not a
     # channel's deliberation, so it is deliberately single-form.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     ok = await adapter.connect()
     assert ok is True
     assert adapter.is_connected() is True
     assert set(fake.subscriptions) == {
-        subjects.agent_dispatch("dev", "skippy"),
-        subjects.agent_dispatch_wildcard("dev", "skippy"),
-        subjects.agent_relay("dev", "skippy"),
-        subjects.agent_relay_wildcard("dev", "skippy"),
-        subjects.agent_wake("dev", "skippy"),
-        subjects.agent_wake_wildcard("dev", "skippy"),
-        subjects.agent_inbox("dev", "skippy"),
+        subjects.agent_dispatch("dev", "wren"),
+        subjects.agent_dispatch_wildcard("dev", "wren"),
+        subjects.agent_relay("dev", "wren"),
+        subjects.agent_relay_wildcard("dev", "wren"),
+        subjects.agent_wake("dev", "wren"),
+        subjects.agent_wake_wildcard("dev", "wren"),
+        subjects.agent_inbox("dev", "wren"),
     }
 
 
 async def test_manager_connect_subscribes_to_inbox_only(monkeypatch: pytest.MonkeyPatch) -> None:
-    # FLEET_ROLE=manager (Nagatha) → adapter subscribes only to its own inbox; the
+    # FLEET_ROLE=manager (Heron) → adapter subscribes only to its own inbox; the
     # task-keyed status/arbitrate lanes are the orchestrator's, not the adapter's.
-    adapter, fake = _adapter(monkeypatch, agent="nagatha", role="manager")
+    adapter, fake = _adapter(monkeypatch, agent="heron", role="manager")
     ok = await adapter.connect()
     assert ok is True
-    assert set(fake.subscriptions) == {subjects.agent_inbox("dev", "nagatha")}
+    assert set(fake.subscriptions) == {subjects.agent_inbox("dev", "heron")}
     # A manager must NOT be subscribed to worker dispatch/relay/wake lanes.
-    assert subjects.agent_dispatch("dev", "nagatha") not in fake.subscriptions
-    assert subjects.agent_relay("dev", "nagatha") not in fake.subscriptions
-    assert subjects.agent_wake("dev", "nagatha") not in fake.subscriptions
+    assert subjects.agent_dispatch("dev", "heron") not in fake.subscriptions
+    assert subjects.agent_relay("dev", "heron") not in fake.subscriptions
+    assert subjects.agent_wake("dev", "heron") not in fake.subscriptions
 
 
 async def test_connect_failure_returns_false(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -344,14 +344,14 @@ async def test_connect_bad_heartbeat_interval_returns_false_before_bus(
 
 
 async def test_inbound_envelope_forges_internal_message(monkeypatch: pytest.MonkeyPatch) -> None:
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
 
     env = Envelope.new(
         msg_id="d1",
         ts="t",
-        sender="nagatha",
+        sender="heron",
         kind="dispatch",
         task_id="task-1",
         channel="dash-dev",
@@ -365,19 +365,19 @@ async def test_inbound_envelope_forges_internal_message(monkeypatch: pytest.Monk
     assert event.text == "Do the thing."
     assert event.source.chat_id == "dash-dev"
     assert event.source.platform == StubPlatform("nats")
-    assert event.source.user_id == "skippy"
+    assert event.source.user_id == "wren"
 
 
 async def test_dedup_duplicate_dispatch_forges_one_turn(monkeypatch: pytest.MonkeyPatch) -> None:
     # App-level duplicate (transport is at-most-once, C5): the same envelope id
     # must never run twice.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     env = Envelope.new(
         msg_id="dup-1",
         ts="t",
-        sender="nagatha",
+        sender="heron",
         kind="dispatch",
         task_id="task-1",
         channel="dash-dev",
@@ -392,7 +392,7 @@ async def test_dead_letter_poison_envelope_keeps_subscriber_up(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # Unprocessable input → sanitized record on the dead-letter lane; alive after.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
     import fleet_subscriber.adapter as adapter_mod
 
@@ -406,9 +406,9 @@ async def test_dead_letter_poison_envelope_keeps_subscriber_up(
         raise ValueError("unmappable for the test")
 
     monkeypatch.setattr(adapter_mod, "envelope_to_message", _boom)
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     poison = Envelope.new(
-        msg_id="poison-1", ts="t", sender="nagatha", kind="dispatch", payload={"text": "x"}
+        msg_id="poison-1", ts="t", sender="heron", kind="dispatch", payload={"text": "x"}
     )
     await handler(poison)  # must not raise
 
@@ -417,7 +417,7 @@ async def test_dead_letter_poison_envelope_keeps_subscriber_up(
     _, record = dead[0]
     assert record.kind == "dead_letter"
     assert record.payload["source_id"] == "poison-1"
-    assert record.payload["source_subject"] == subjects.agent_dispatch("dev", "skippy")
+    assert record.payload["source_subject"] == subjects.agent_dispatch("dev", "wren")
     assert "text" not in str(record.payload)  # never the raw payload
     # Reason carries the exception CLASS ONLY — downstream raisers embed the
     # offending input (the turn text) in str(exc), which must never leak here.
@@ -428,12 +428,12 @@ async def test_dead_letter_poison_envelope_keeps_subscriber_up(
 
 
 async def test_unactionable_envelope_is_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_relay("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_relay("dev", "wren")]
     # No text → nothing to run.
     env = Envelope.new(
-        msg_id="r1", ts="t", sender="nagatha", kind="relay", channel="dash-dev", payload={}
+        msg_id="r1", ts="t", sender="heron", kind="relay", channel="dash-dev", payload={}
     )
     await handler(env)
     assert adapter.handled == []
@@ -443,7 +443,7 @@ async def test_send_without_known_task_falls_back_to_channel_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # A bare send() with no prior inbound (no task correlation) keys on the channel.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
     result = await adapter.send("dash-dev", "the agent's reply", metadata={"thread_id": "th-1"})
     assert result.success is True
@@ -459,14 +459,14 @@ async def test_reply_routes_to_the_task_status_subject(monkeypatch: pytest.Monke
     # the reply on agent_status(env, "task-1") — the SAME subject the orchestrator
     # watches — not agent_status(env, <channel>). Regression test for the bug where
     # the reply was keyed on the channel and the manager would never receive it.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await handler(
         Envelope.new(
             msg_id="d1",
             ts="t",
-            sender="nagatha",
+            sender="heron",
             kind="dispatch",
             task_id="task-1",
             channel="dash-dev",
@@ -496,14 +496,14 @@ async def test_wildcard_inbound_channel_replies_on_a_deliverable_subject(
     site. The reply must fall back to the bare form, which the hub also
     subscribes, so the status and the done sentinel still land.
     """
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await handler(
         Envelope.new(
             msg_id="d1",
             ts="t",
-            sender="nagatha",
+            sender="heron",
             kind="dispatch",
             task_id="task-1",
             channel=hostile_channel,
@@ -526,7 +526,7 @@ async def _dispatch(handler: Any, *, task_id: str, channel: str, text: str = "do
         Envelope.new(
             msg_id=f"d-{task_id}",
             ts="t",
-            sender="nagatha",
+            sender="heron",
             kind="dispatch",
             task_id=task_id,
             channel=channel,
@@ -568,9 +568,9 @@ async def test_correlated_turn_publishes_only_the_completed_send(
     # it is recorded on its own lane. So this test now pins both directions —
     # the coordination lane sees exactly two envelopes, and the two noise sends
     # are still fully recoverable from the ack/telemetry lanes.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send("dash-dev", "ack: on it")
@@ -600,9 +600,9 @@ async def test_map_bounded_by_channel_new_dispatch_overwrites(
     # A new dispatch on the same channel supersedes the old correlation — the map
     # holds at most one entry per channel (bounded growth), and sends after the new
     # dispatch route to the new task.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
     await _dispatch(handler, task_id="task-2", channel="dash-dev")  # supersedes task-1
     await adapter.send("dash-dev", _turn("reply", done=True))
@@ -614,7 +614,7 @@ async def test_map_bounded_by_channel_new_dispatch_overwrites(
 
 async def test_send_without_bus_returns_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     # The no-bus drop path returns SendResult(success=False), not a crash.
-    adapter, _ = _adapter(monkeypatch, agent="skippy")
+    adapter, _ = _adapter(monkeypatch, agent="wren")
     # send() before connect() → self._bus is None.
     result = await adapter.send("dash-dev", "reply with no bus")
     assert result.success is False
@@ -623,9 +623,9 @@ async def test_send_without_bus_returns_failure(monkeypatch: pytest.MonkeyPatch)
 async def test_typed_completion_emits_done_sentinel(monkeypatch: pytest.MonkeyPatch) -> None:
     # A typed completion posts the visible reply then emits a kind="done" sentinel
     # on the task's status subject (issue #6), and frees the correlation.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -644,7 +644,7 @@ async def test_typed_completion_emits_done_sentinel(monkeypatch: pytest.MonkeyPa
     assert done_env.kind == "done"
     assert done_env.task_id == "task-1"
     assert done_env.payload == {
-        "header": {"actor": "skippy"},
+        "header": {"actor": "wren"},
         "data": {"task_id": "task-1", "outcome": "completed"},
         "extras": {},
         "footer": {},
@@ -656,9 +656,9 @@ async def test_typed_completion_emits_done_sentinel(monkeypatch: pytest.MonkeyPa
 async def test_intermediate_correlated_reply_emits_nothing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
     await adapter.send("dash-dev", "still working on it...")  # no trailer
     # No status and no done sentinel; correlation remains for the final send.
@@ -670,9 +670,9 @@ async def test_intermediate_correlated_reply_emits_nothing(
 async def test_typed_stance_rides_payload_meta(monkeypatch: pytest.MonkeyPatch) -> None:
     # the agent runtime: a typed stance rides {"stance", "fact_pull"} on
     # payload.meta — the EXACT shape the orchestrator's parse_turn_signal consumes.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -696,9 +696,9 @@ async def test_stance_meta_matches_parse_turn_signal_wire_shape(
     # payload.meta = {"stance": <one of agree/dissent/neutral>, "fact_pull": bool},
     # with BOTH keys present (parse_turn_signal rejects a half-signed meta). Asserted
     # against the wire dict directly so this suite has no cross-package dep.
-    adapter, fake = _adapter(monkeypatch, agent="bilby")
+    adapter, fake = _adapter(monkeypatch, agent="finch")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "bilby")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "finch")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
     await adapter.send(
         "dash-dev",
@@ -710,16 +710,16 @@ async def test_stance_meta_matches_parse_turn_signal_wire_shape(
     assert set(meta) >= {"stance", "fact_pull"}  # both present → not half-signed
     assert meta["stance"] in {"agree", "dissent", "neutral"}
     assert isinstance(meta["fact_pull"], bool)
-    assert env.sender == "bilby"  # parse_turn_signal reads agent_id off the sender
+    assert env.sender == "finch"  # parse_turn_signal reads agent_id off the sender
     assert env.task_id == "task-1"
 
 
 async def test_stance_reason_rides_meta_but_orchestrator_ignores_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
     await adapter.send(
         "dash-dev",
@@ -736,9 +736,9 @@ async def test_stance_reason_rides_meta_but_orchestrator_ignores_it(
 async def test_no_stance_trailer_emits_no_meta(monkeypatch: pytest.MonkeyPatch) -> None:
     # Absence: an ordinary reply carries NO meta key (an UNSIGNED turn — the normal
     # case), so the orchestrator's parse_turn_signal returns None, not a bad signal.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
     await adapter.send("dash-dev", _turn("just my thoughts, no stance signed", done=True))
     _, env = fake.published[0]
@@ -750,9 +750,9 @@ async def test_malformed_typed_stance_leaves_turn_unsigned(
 ) -> None:
     # A malformed typed stance must not emit a stance the orchestrator would reject.
     # parse_turn rejects the JSON object, so the coordinated send has no signal.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
     await adapter.send("dash-dev", _turn("hmm", done=True, stance="maybe"))
     _assert_noise_only(fake)
@@ -761,9 +761,9 @@ async def test_malformed_typed_stance_leaves_turn_unsigned(
 async def test_typed_stance_and_done_coexist(monkeypatch: pytest.MonkeyPatch) -> None:
     # A typed turn can BOTH sign a stance and complete; the stance rides meta and
     # the done sentinel is still emitted.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -782,13 +782,13 @@ async def test_typed_stance_and_done_coexist(monkeypatch: pytest.MonkeyPatch) ->
 
 
 async def test_get_chat_info_returns_channel_shape(monkeypatch: pytest.MonkeyPatch) -> None:
-    adapter, _ = _adapter(monkeypatch, agent="skippy")
+    adapter, _ = _adapter(monkeypatch, agent="wren")
     info = await adapter.get_chat_info("dash-dev")
     assert info == {"id": "dash-dev", "type": "channel"}
 
 
 async def test_disconnect_closes_bus(monkeypatch: pytest.MonkeyPatch) -> None:
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
     assert fake.connected is True
     await adapter.disconnect()
@@ -801,7 +801,7 @@ async def test_connect_subscribe_failure_returns_false_and_closes(
 ) -> None:
     # connect()'s contract is return-False-with-log on ANY failure. A subscribe
     # raising mid-loop must not escape or leak an open, partially-subscribed bus.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
 
     async def boom(subject: str, handler: Any) -> Any:
         raise RuntimeError("connection dropped mid-subscribe")
@@ -816,11 +816,11 @@ def _narration(task_id: str = "task-1") -> Envelope:
     return Envelope.new(
         msg_id="n1",
         ts="t",
-        sender="nagatha",
+        sender="heron",
         kind="narration",
         task_id=task_id,
         channel="dash-dev",
-        payload={"text": f"[{task_id}] dispatched to bilby — coordination started."},
+        payload={"text": f"[{task_id}] dispatched to finch — coordination started."},
     )
 
 
@@ -829,9 +829,9 @@ async def test_worker_never_voices_a_narration_envelope(
 ) -> None:
     # Single-throat guard (#13): a narration beat misrouted onto a WORKER lane
     # is dropped, never forged into a turn — only the manager narrates.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_inbox("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_inbox("dev", "wren")]
     await handler(_narration())
     assert adapter.handled == []
 
@@ -839,9 +839,9 @@ async def test_worker_never_voices_a_narration_envelope(
 async def test_manager_forges_narration_as_an_announce_turn(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adapter, fake = _adapter(monkeypatch, agent="nagatha", role="manager")
+    adapter, fake = _adapter(monkeypatch, agent="heron", role="manager")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_inbox("dev", "nagatha")]
+    handler = fake.subscriptions[subjects.agent_inbox("dev", "heron")]
     await handler(_narration())
     assert len(adapter.handled) == 1
     assert "Announce this status" in adapter.handled[0].text
@@ -864,10 +864,10 @@ async def test_registry_lanes_are_honored_when_buildable(
             version=2,
         )
 
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     monkeypatch.setattr(adapter_mod, "connect_catalog", fetched_catalog)
     assert await adapter.connect() is True
-    assert set(fake.subscriptions) == {subjects.agent_inbox("dev", "skippy")}
+    assert set(fake.subscriptions) == {subjects.agent_inbox("dev", "wren")}
 
 
 async def test_fetched_catalog_with_unknown_lane_name_refuses_to_start(
@@ -891,7 +891,7 @@ async def test_fetched_catalog_with_unknown_lane_name_refuses_to_start(
             version=2,
         )
 
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     monkeypatch.setattr(adapter_mod, "connect_catalog", bogus_catalog)
     assert await adapter.connect() is False
     assert adapter.is_connected() is False
@@ -970,7 +970,7 @@ async def test_connect_refuses_to_start_below_catalog_floor(
     ) as base_url:
         monkeypatch.setenv("FLEET_SUBJECT_REGISTRY_URL", base_url)
         monkeypatch.setenv("FLEET_SUBJECT_CATALOG_MIN_VERSION", "9")  # served v7 < 9
-        adapter, fake = _adapter(monkeypatch, agent="skippy")
+        adapter, fake = _adapter(monkeypatch, agent="wren")
         with pytest.raises(CatalogVersionTooLowError) as exc:
             await adapter.connect()
 
@@ -991,7 +991,7 @@ async def test_voice_tee_off_by_default_no_discord_call(
     # Tee env unset → the adapter never calls the tee, and the bus path is intact.
     monkeypatch.delenv("FLEET_VOICE_TEE_ENABLED", raising=False)
     monkeypatch.delenv("FLEET_VOICE_TEE_CHANNEL_ID", raising=False)
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
     import fleet_subscriber.adapter as adapter_mod
 
@@ -1014,9 +1014,9 @@ async def test_correlated_intermediate_send_skips_voice_tee(
     # #118: the tee resolves the TURN's channel through the persisted portal
     # map. "dash-dev" is the channel these turns run in.
     monkeypatch.setenv("FLEET_CHANNEL_MAP", "dash-dev=discord-123")
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     import fleet_subscriber.adapter as adapter_mod
@@ -1042,9 +1042,9 @@ async def test_correlated_stance_without_completion_publishes_signal_not_voice(
     # #118: the tee resolves the TURN's channel through the persisted portal
     # map. "dash-dev" is the channel these turns run in.
     monkeypatch.setenv("FLEET_CHANNEL_MAP", "dash-dev=discord-123")
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     import fleet_subscriber.adapter as adapter_mod
@@ -1076,9 +1076,9 @@ async def test_voice_tee_on_posts_stripped_text(monkeypatch: pytest.MonkeyPatch)
     # #118: the tee resolves the TURN's channel through the persisted portal
     # map. "dash-dev" is the channel these turns run in.
     monkeypatch.setenv("FLEET_CHANNEL_MAP", "dash-dev=discord-123")
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     import fleet_subscriber.adapter as adapter_mod
@@ -1116,9 +1116,9 @@ async def test_voice_tee_mirrors_each_channel_to_its_own_room(
     """
     monkeypatch.setenv("FLEET_VOICE_TEE_ENABLED", "true")
     monkeypatch.setenv("FLEET_CHANNEL_MAP", "arena=discord-arena,fleet-ops=discord-ops")
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-a", channel="arena")
     await _dispatch(handler, task_id="task-b", channel="fleet-ops")
 
@@ -1162,9 +1162,9 @@ async def test_voice_tee_skips_an_unmapped_channel_rather_than_misrouting(
     monkeypatch.setenv("FLEET_VOICE_TEE_ENABLED", "true")
     monkeypatch.setenv("FLEET_VOICE_TEE_CHANNEL_ID", "discord-legacy")
     monkeypatch.setenv("FLEET_CHANNEL_MAP", "arena=discord-arena")
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-x", channel="not-mapped")
 
     import fleet_subscriber.adapter as adapter_mod
@@ -1190,9 +1190,9 @@ async def test_a_new_channel_needs_only_a_map_row(monkeypatch: pytest.MonkeyPatc
     """
     monkeypatch.setenv("FLEET_VOICE_TEE_ENABLED", "true")
     monkeypatch.setenv("FLEET_CHANNEL_MAP", "arena=discord-arena,not-mapped=discord-new")
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-x", channel="not-mapped")
 
     import fleet_subscriber.adapter as adapter_mod
@@ -1235,9 +1235,9 @@ async def test_voice_tee_failure_never_breaks_bus_publish(
     monkeypatch.setitem(sys.modules, "gateway", gw)
     monkeypatch.setitem(sys.modules, "gateway.run", gw_run)
 
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     # send() must succeed and publish on the bus even though the tee blew up.
@@ -1337,31 +1337,31 @@ async def test_worker_subscribes_the_fetched_catalog_dispatch_subject(
 ) -> None:
     # The fetched catalog's dispatch template differs from the code default; the
     # real connect() must subscribe the CATALOG's subject, never the builder's.
-    # (Pre-fix: subscribes subjects.agent_dispatch("dev","skippy") and the catalog
+    # (Pre-fix: subscribes subjects.agent_dispatch("dev","wren") and the catalog
     # subject is absent → this assertion fails.)
     dispatch_template = "{env}.agent.dispatch-v2.{worker}"
     with _CatalogServer(_catalog_payload(dispatch_template=dispatch_template)) as base_url:
         monkeypatch.setenv("FLEET_SUBJECT_REGISTRY_URL", base_url)
         monkeypatch.delenv("FLEET_SUBJECT_CATALOG_MIN_VERSION", raising=False)
-        adapter, fake = _adapter(monkeypatch, agent="skippy")
+        adapter, fake = _adapter(monkeypatch, agent="wren")
         ok = await adapter.connect()
 
     assert ok is True
-    catalog_dispatch = dispatch_template.format(env="dev", worker="skippy")
-    assert catalog_dispatch == "dev.agent.dispatch-v2.skippy"
+    catalog_dispatch = dispatch_template.format(env="dev", worker="wren")
+    assert catalog_dispatch == "dev.agent.dispatch-v2.wren"
     # The catalog subject is subscribed; the hard-coded builder's is NOT.
     assert catalog_dispatch in fake.subscriptions
-    assert subjects.agent_dispatch("dev", "skippy") not in fake.subscriptions
+    assert subjects.agent_dispatch("dev", "wren") not in fake.subscriptions
     # The other lanes (whose catalog templates match code) resolve identically —
     # the whole worker lane set is present, sourced from the catalog.
     assert set(fake.subscriptions) == {
         catalog_dispatch,
-        subjects.agent_dispatch_wildcard("dev", "skippy"),
-        subjects.agent_relay("dev", "skippy"),
-        subjects.agent_relay_wildcard("dev", "skippy"),
-        subjects.agent_wake("dev", "skippy"),
-        subjects.agent_wake_wildcard("dev", "skippy"),
-        subjects.agent_inbox("dev", "skippy"),
+        subjects.agent_dispatch_wildcard("dev", "wren"),
+        subjects.agent_relay("dev", "wren"),
+        subjects.agent_relay_wildcard("dev", "wren"),
+        subjects.agent_wake("dev", "wren"),
+        subjects.agent_wake_wildcard("dev", "wren"),
+        subjects.agent_inbox("dev", "wren"),
     }
 
 
@@ -1376,7 +1376,7 @@ async def test_connect_fails_loud_when_catalog_missing_a_lane_template(
     with _CatalogServer(payload) as base_url:
         monkeypatch.setenv("FLEET_SUBJECT_REGISTRY_URL", base_url)
         monkeypatch.delenv("FLEET_SUBJECT_CATALOG_MIN_VERSION", raising=False)
-        adapter, fake = _adapter(monkeypatch, agent="skippy")
+        adapter, fake = _adapter(monkeypatch, agent="wren")
         ok = await adapter.connect()
 
     assert ok is False
@@ -1402,9 +1402,9 @@ async def test_json_turn_completes_and_emits_done_sentinel(
     # A typed Turn with done=True posts the clean visible_text as a status reply
     # then emits the done sentinel — the SAME wire result as a [[done]] text reply,
     # but driven off the named field, not a trailer scrape.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -1424,7 +1424,7 @@ async def test_json_turn_completes_and_emits_done_sentinel(
     assert done_subj == task_subject
     assert done_env.kind == "done"
     assert done_env.payload == {
-        "header": {"actor": "skippy"},
+        "header": {"actor": "wren"},
         "data": {"task_id": "task-1", "outcome": "shipped"},
         "extras": {},
         "footer": {},
@@ -1441,9 +1441,9 @@ async def test_json_stance_only_turn_binds_typed_stance(
     # A stance-only typed Turn (done=False) publishes the scorekeeper status signal
     # with a typed fleet-core Stance bound as typed_signal (C7: typed frame fields
     # are truth) and payload.meta kept only as a compatibility mirror.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -1486,9 +1486,9 @@ async def test_json_turn_both_signs_stance_and_completes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # done + stance in one typed turn: status carries meta, then the done sentinel.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -1526,9 +1526,9 @@ async def test_raw_completion_trailer_does_not_complete_coordinated_turn(
     # Completion is a typed turn field, not a prose token (fleet-bus #205 removed
     # the text-trailer parsers entirely). A raw visible-text reply ending in
     # [[done]] is not a typed completion and must not emit status or a sentinel.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send("dash-dev", "the real answer\n[[done]]")
@@ -1543,9 +1543,9 @@ async def test_raw_stance_trailer_does_not_sign_coordinated_turn(
     # Same spoof class for stance: raw visible text is not typed structure. There
     # is no text-trailer parser anymore (fleet-bus #205); a coordinated send signs
     # only from a typed Turn's named fields.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send("dash-dev", "Agreed.\n[[stance:agree]]")
@@ -1560,9 +1560,9 @@ async def test_json_turn_visible_text_with_done_marker_does_not_complete(
     # SPOOF CLASS DEAD: a JSON turn whose visible_text CONTAINS the literal [[done]]
     # marker but has done=False (the default) does NOT complete. The marker is inert
     # field text — completion comes from the named `done` field, never a scrape.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -1583,9 +1583,9 @@ async def test_json_turn_visible_text_with_stance_marker_does_not_sign(
     # SPOOF CLASS DEAD: a JSON turn whose visible_text CONTAINS a stance trailer
     # marker but has no typed stance field does NOT sign. The marker is inert
     # field text — stance comes from the named `stance` field, never a scrape.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -1604,9 +1604,9 @@ async def test_json_turn_visible_text_with_footer_string_does_not_complete(
     # (`model · context% · cwd`) sitting inside visible_text is inert text on the
     # typed path — it is neither carried as a field nor stripped, and it does not
     # complete or sign the turn. The footer heuristic the 4 rounds fought is gone.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -1624,9 +1624,9 @@ async def test_json_turn_footer_string_stays_verbatim_when_completing(
     # Positive complement: a footer-looking substring in a DONE turn's visible_text
     # is preserved verbatim (never stripped) — attribution/footer stripping is not
     # this envelope's job (it lives in Langfuse traces), so the field rides as-is.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -1645,9 +1645,9 @@ async def test_json_turn_with_unknown_extra_field_still_completes(
     # does not know about must STILL complete — the unknown field is preserved, the
     # turn is NOT rejected into the text fallback (where the trailer-less JSON would
     # be suppressed and the correlation would wedge).
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -1669,9 +1669,9 @@ async def test_json_turn_capitalised_stance_completes_and_signs(
     # Case-insensitive stance (codex delta): a done turn signing "Agree" must
     # complete AND ride stance "agree" on payload.meta — a capitalised stance must
     # not fail the whole turn and drop the completion.
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send(
@@ -1707,14 +1707,14 @@ async def test_the_legacy_tee_env_keeps_mirroring_when_no_map_is_deployed(
     monkeypatch.setenv("FLEET_VOICE_TEE_CHANNEL_ID", "discord-legacy")
     monkeypatch.delenv("FLEET_CHANNEL_MAP", raising=False)
     monkeypatch.delenv("FLEET_SUBJECT_REGISTRY_URL", raising=False)
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
 
     assert adapter._voice_tee.active is True
 
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
-    # "skippy-home" is StubConfig's home_channel — the slug the bridge anchors to.
-    await _dispatch(handler, task_id="task-1", channel="skippy-home")
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
+    # "wren-home" is StubConfig's home_channel — the slug the bridge anchors to.
+    await _dispatch(handler, task_id="task-1", channel="wren-home")
 
     import fleet_subscriber.adapter as adapter_mod
 
@@ -1724,7 +1724,7 @@ async def test_the_legacy_tee_env_keeps_mirroring_when_no_map_is_deployed(
         calls.append(kwargs)
 
     monkeypatch.setattr(adapter_mod, "tee_to_discord", spy)
-    await adapter.send("skippy-home", _turn("still visible", done=True, outcome="completed"))
+    await adapter.send("wren-home", _turn("still visible", done=True, outcome="completed"))
 
     assert len(calls) == 1
     assert calls[0]["channel_id"] == "discord-legacy"
@@ -1739,7 +1739,7 @@ async def test_the_legacy_bridge_anchors_to_agent_id_when_config_has_no_home_cha
     this file misses: ``_adapter()`` builds ``StubConfig(home_channel=...)``, but
     the real Hermes ``PlatformConfig`` is constructed from this plugin's
     ``required_env`` (FLEET_NATS_URL, FLEET_AGENT_ID) and never carries a home
-    channel at all. So on skippy and bilby -- both of which have
+    channel at all. So on wren and finch -- both of which have
     FLEET_VOICE_TEE_ENABLED and FLEET_VOICE_TEE_CHANNEL_ID and neither of which
     has FLEET_CHANNEL_MAP -- ``home`` was empty, ``VoiceTeeConfig.from_env`` took
     the retire-and-skip branch, and the tee went from mirroring one room to
@@ -1753,15 +1753,15 @@ async def test_the_legacy_bridge_anchors_to_agent_id_when_config_has_no_home_cha
     monkeypatch.setenv("FLEET_VOICE_TEE_CHANNEL_ID", "discord-legacy")
     monkeypatch.delenv("FLEET_CHANNEL_MAP", raising=False)
     monkeypatch.delenv("FLEET_SUBJECT_REGISTRY_URL", raising=False)
-    adapter, fake = _adapter(monkeypatch, agent="skippy", home_channel=None)
+    adapter, fake = _adapter(monkeypatch, agent="wren", home_channel=None)
     await adapter.connect()
 
     # Without the agent_id fallback this is False: no home slug, so the legacy
     # id is retired and the mirror is silently dead.
     assert adapter._voice_tee.active is True
 
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
-    await _dispatch(handler, task_id="task-1", channel="skippy")
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
+    await _dispatch(handler, task_id="task-1", channel="wren")
 
     import fleet_subscriber.adapter as adapter_mod
 
@@ -1771,7 +1771,7 @@ async def test_the_legacy_bridge_anchors_to_agent_id_when_config_has_no_home_cha
         calls.append(kwargs)
 
     monkeypatch.setattr(adapter_mod, "tee_to_discord", spy)
-    await adapter.send("skippy", _turn("still visible", done=True, outcome="completed"))
+    await adapter.send("wren", _turn("still visible", done=True, outcome="completed"))
 
     assert len(calls) == 1
     assert calls[0]["channel_id"] == "discord-legacy"
@@ -1789,9 +1789,9 @@ async def test_the_legacy_bridge_does_not_mirror_another_channel(
     monkeypatch.setenv("FLEET_VOICE_TEE_CHANNEL_ID", "discord-legacy")
     monkeypatch.delenv("FLEET_CHANNEL_MAP", raising=False)
     monkeypatch.delenv("FLEET_SUBJECT_REGISTRY_URL", raising=False)
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-x", channel="somewhere-else")
 
     import fleet_subscriber.adapter as adapter_mod
@@ -1822,9 +1822,9 @@ async def test_a_changed_channel_map_drops_stale_chat_task_correlations(
     """
     monkeypatch.delenv("FLEET_CHANNEL_MAP", raising=False)
     monkeypatch.delenv("FLEET_SUBJECT_REGISTRY_URL", raising=False)
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="Arena")
 
     # Empty map → the raw spelling is the correlation key.
@@ -1849,9 +1849,9 @@ async def test_noise_send_is_recorded_not_discarded(monkeypatch: pytest.MonkeyPa
     nor recorded anywhere, so "fully logged and mineable" was simply false. This
     is the test that fails against the unfixed adapter (which published nothing).
     """
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     result = await adapter.send("dash-dev", "ack: on it")
@@ -1871,9 +1871,9 @@ async def test_long_noise_send_goes_to_the_telemetry_lane(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Tool echo / progress markers ride ``telemetry``, not the low-volume ack lane."""
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     tool_echo = "⏳ running: " + "x" * 200
@@ -1897,9 +1897,9 @@ async def test_short_progress_marker_goes_to_telemetry_not_the_ack_lane(
     few seconds would then put unbounded traffic on the low-volume lane and
     defeat the split entirely.
     """
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     assert len(marker_send) <= 80, "the point of this test is that it is SHORT"
@@ -1915,9 +1915,9 @@ async def test_a_plain_short_ack_still_rides_the_ack_lane(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The marker rule must not swallow the ack lane it is meant to protect."""
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     await adapter.send("dash-dev", "ack: on it")
@@ -1938,9 +1938,9 @@ async def test_noise_never_reaches_the_status_lane_or_the_tee(
     """
     monkeypatch.setenv("FLEET_VOICE_TEE_ENABLED", "true")
     monkeypatch.setenv("FLEET_VOICE_TEE_CHANNEL_ID", "chan-1")
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     teed: list[dict[str, Any]] = []
@@ -1969,9 +1969,9 @@ async def test_noise_publish_failure_never_fails_the_send(
     Same fail-open contract the voice tee has: losing an ack is a recording gap,
     not a coordination fault, so ``send`` still reports success.
     """
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
     await _dispatch(handler, task_id="task-1", channel="dash-dev")
 
     async def boom(subject: str, envelope: Envelope) -> None:
@@ -1991,7 +1991,7 @@ async def test_uncorrelated_send_is_not_noise(monkeypatch: pytest.MonkeyPatch) -
     reaching the status lane rather than being quietly reclassified as noise and
     disappearing from the coordination path.
     """
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
 
     await adapter.send("dash-dev", "a standalone reply")
@@ -2013,9 +2013,9 @@ async def test_reply_is_scoped_to_the_channel_it_answers(
     scoped status subjects, so a channel-scoped observer of one never sees the
     other's traffic.
     """
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
-    handler = fake.subscriptions[subjects.agent_dispatch("dev", "skippy")]
+    handler = fake.subscriptions[subjects.agent_dispatch("dev", "wren")]
 
     await _dispatch(handler, task_id="task-a", channel="dash-dev")
     await adapter.send("dash-dev", _turn("answer a", done=True))
@@ -2037,11 +2037,11 @@ async def test_worker_receives_a_channel_scoped_relay(monkeypatch: pytest.Monkey
     message loss (NATS core has no backlog), so this pins that the scoped subject
     the orchestrator now builds is one the worker actually attached to.
     """
-    adapter, fake = _adapter(monkeypatch, agent="skippy")
+    adapter, fake = _adapter(monkeypatch, agent="wren")
     await adapter.connect()
 
-    scoped_relay = subjects.agent_relay_wildcard("dev", "skippy")
-    scoped_wake = subjects.agent_wake_wildcard("dev", "skippy")
+    scoped_relay = subjects.agent_relay_wildcard("dev", "wren")
+    scoped_wake = subjects.agent_wake_wildcard("dev", "wren")
     assert scoped_relay in fake.subscriptions
     assert scoped_wake in fake.subscriptions
 
@@ -2050,5 +2050,5 @@ async def test_worker_receives_a_channel_scoped_relay(monkeypatch: pytest.Monkey
         pt, st = pattern.split("."), subject.split(".")
         return len(pt) == len(st) and all(p in ("*", s) for p, s in zip(pt, st, strict=True))
 
-    assert _matches(scoped_relay, subjects.agent_relay("dev", "skippy", channel="dash-dev"))
-    assert _matches(scoped_wake, subjects.agent_wake("dev", "skippy", channel="dash-dev"))
+    assert _matches(scoped_relay, subjects.agent_relay("dev", "wren", channel="dash-dev"))
+    assert _matches(scoped_wake, subjects.agent_wake("dev", "wren", channel="dash-dev"))

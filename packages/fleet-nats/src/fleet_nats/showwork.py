@@ -64,7 +64,7 @@ from loguru import logger
 
 from fleet_nats.redact import redact_text
 
-# Rico reads ET only — every rendered timestamp is America/New_York.
+# The operator reads ET only — every rendered timestamp is America/New_York.
 _ET = ZoneInfo("America/New_York")
 
 # Frame kinds that never belong in a deliberation trail (liveness noise).
@@ -193,7 +193,7 @@ def _extract_extra(obj: dict[str, object]) -> dict[str, object]:
 def _kind_from_subject(subject: str) -> str | None:
     """Best-effort kind from a NATS subject's shape (``{env}.agent.<kind>.*``)."""
     parts = subject.split(".")
-    # {env}.agent.dispatch.skippy -> "dispatch"; {env}.kboard.task.created.* ->
+    # {env}.agent.dispatch.wren -> "dispatch"; {env}.kboard.task.created.* ->
     # "kboard_event"; {env}.agent.arbitrate.<topic> -> "arbitrate".
     # The env token (parts[0]) is OPAQUE — dev/prod/staging all key the same way,
     # so a staging subject is not blind to kind inference (fleet-bus #105 P3-6).

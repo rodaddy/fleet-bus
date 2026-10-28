@@ -107,7 +107,7 @@ def _dead_port() -> int:
 def test_connect_failure_never_logs_password(caplog: pytest.LogCaptureFixture) -> None:
     port = _dead_port()
     url = f"nats://user:{_SECRET}@127.0.0.1:{port}"
-    cfg = BusConfig(url=url, agent_id="bilby", connect_timeout_s=1)
+    cfg = BusConfig(url=url, agent_id="finch", connect_timeout_s=1)
     bus = FleetBus(cfg)
 
     sink_lines: list[str] = []
@@ -134,7 +134,7 @@ def test_connect_generic_failure_never_logs_password(
     # An unresolvable host raises a connect error BEFORE the timeout budget,
     # exercising the generic ``except Exception`` branch (not the timeout one).
     url = f"nats://user:{_SECRET}@nonexistent.invalid:4222"
-    cfg = BusConfig(url=url, agent_id="bilby", connect_timeout_s=1)
+    cfg = BusConfig(url=url, agent_id="finch", connect_timeout_s=1)
     bus = FleetBus(cfg)
 
     sink_lines: list[str] = []
@@ -189,7 +189,7 @@ def test_connect_success_never_logs_password() -> None:
         # Unauthenticated throwaway server ignores the userinfo; connect still
         # succeeds and the debug/info connect lines fire with the URL.
         url = f"nats://user:{_SECRET}@127.0.0.1:{port}"
-        cfg = BusConfig(url=url, agent_id="bilby", connect_timeout_s=2)
+        cfg = BusConfig(url=url, agent_id="finch", connect_timeout_s=2)
         bus = FleetBus(cfg)
 
         sink_lines: list[str] = []

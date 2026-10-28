@@ -13,12 +13,12 @@ def _never_stale(_worker: str) -> bool | None:
 
 def test_offline_ladder_wake_then_redispatch_then_blocked() -> None:
     detector = OfflineDetector(timeout_s=10.0)
-    detector.note_dispatch("t1", "bilby", now=0.0)
+    detector.note_dispatch("t1", "finch", now=0.0)
 
     assert detector.check(now=10.0, is_stale=_never_stale) == []  # at the window, not past
 
     (wake,) = detector.check(now=10.5, is_stale=_never_stale)
-    assert (wake.task_id, wake.worker, wake.escalation) == ("t1", "bilby", Escalation.WAKE)
+    assert (wake.task_id, wake.worker, wake.escalation) == ("t1", "finch", Escalation.WAKE)
 
     assert detector.check(now=15.0, is_stale=_never_stale) == []  # fresh window after wake
     (redispatch,) = detector.check(now=21.0, is_stale=_never_stale)
@@ -35,7 +35,7 @@ def test_offline_ladder_wake_then_redispatch_then_blocked() -> None:
 
 def test_offline_worker_signal_resets_the_ladder() -> None:
     detector = OfflineDetector(timeout_s=10.0)
-    detector.note_dispatch("t1", "bilby", now=0.0)
+    detector.note_dispatch("t1", "finch", now=0.0)
     (wake,) = detector.check(now=11.0, is_stale=_never_stale)
     assert wake.escalation is Escalation.WAKE
 
@@ -49,7 +49,7 @@ def test_offline_stale_heartbeat_skips_the_wake_rung() -> None:
     # Phase-2 cross-check: waking an agent whose heartbeat is already stale
     # wastes a window — the ladder goes straight to redispatch, explicitly.
     detector = OfflineDetector(timeout_s=10.0)
-    detector.note_dispatch("t1", "bilby", now=0.0)
+    detector.note_dispatch("t1", "finch", now=0.0)
     (decision,) = detector.check(now=11.0, is_stale=lambda _w: True)
     assert decision.escalation is Escalation.REDISPATCH
     assert "heartbeat stale" in decision.reason
@@ -59,7 +59,7 @@ def test_offline_stale_heartbeat_skips_the_wake_rung() -> None:
 
 def test_offline_done_task_is_unwatched_and_unknown_status_ignored() -> None:
     detector = OfflineDetector(timeout_s=10.0)
-    detector.note_dispatch("t1", "bilby", now=0.0)
+    detector.note_dispatch("t1", "finch", now=0.0)
     detector.note_done("t1")
     detector.note_status("t-unknown", now=1.0)  # never dispatched — no crash
     assert detector.check(now=100.0, is_stale=_never_stale) == []
@@ -68,7 +68,7 @@ def test_offline_done_task_is_unwatched_and_unknown_status_ignored() -> None:
 def test_offline_never_seen_heartbeat_still_walks_the_ladder() -> None:
     # is_stale None (never seen) is unknown, not dead — the wake rung stays.
     detector = OfflineDetector(timeout_s=10.0)
-    detector.note_dispatch("t1", "bilby", now=0.0)
+    detector.note_dispatch("t1", "finch", now=0.0)
     (decision,) = detector.check(now=11.0, is_stale=lambda _w: None)
     assert decision.escalation is Escalation.WAKE
 

@@ -49,7 +49,7 @@ Contracts epic (#109).
   [§ Sensitivity](#sensitivity-how-much-the-assumptions-move-the-index).
 
 **~89% of the index (1,650,600 index-tok at baseline) is a single relay-storm
-task** — the skippy↔bilby ping-pong of #96. This concentration is **rooted in
+task** — the wren↔finch ping-pong of #96. This concentration is **rooted in
 the measured structure** (58 of 72 relays on one task) but is **not** independent
 of the assumed constants: because the index is convex in M, varying the
 dominant `GROWTH` constant ±50% moves the headline share (arithmetic below, from
@@ -121,7 +121,7 @@ self-contained.
    orchestrator `CostLedger`; **no disk, no Langfuse persistence** (verified,
    this session). Contributes no numeric input.
 3. **Hermes agent-host logs — CHECKED, no usable per-turn usage.** On the agent
-   host (nagatha, `192.0.2.77`) `~/.hermes/logs/agent.log` covers
+   host (heron, `192.0.2.77`) `~/.hermes/logs/agent.log` covers
    2026-06-23 → 2026-07-10 (1,653 lines on 2026-07-09) but carries **zero**
    `prompt_tokens`/`completion_tokens`/`total_tokens` records. The only
    token-shaped lines are `agent.conversation_compression` heuristics
@@ -176,7 +176,7 @@ in [§ How to re-measure](#how-to-re-measure-workload-controlled).
 | Coordination spans (messages), M | **93** | MEASURED | `observations` meta.totalItems |
 | Distinct tasks (traces) | **5** | MEASURED | `traces` meta.totalItems |
 | By action | relay **72**, dispatch **15**, complete **4**, noop **2** | MODELED-FROM-OBSERVED | group observed payload by span `name` |
-| By target | bilby **51**, skippy **31**, (unaddressed) **11** | MODELED-FROM-OBSERVED | group observed payload by `metadata.target` |
+| By target | finch **51**, wren **31**, (unaddressed) **11** | MODELED-FROM-OBSERVED | group observed payload by `metadata.target` |
 | Window | 06:58:29 – 09:24:08 UTC | MODELED-FROM-OBSERVED | span `startTime` min/max over observed payload |
 
 Per-task message counts (**MODELED-FROM-OBSERVED** — grouped from the observed
@@ -264,7 +264,7 @@ the registry + subscriber adapter, or marked a scenario assumption. Mapping:
   message is read by a second *LLM* turn only if it is *also* delivered to
   another subscribed lane (e.g. a relay fan-out addressing two agents), which the
   measured 2026-07-09 structure shows is the *exception*, not the rule (targets
-  are single-addressed: bilby 51, skippy 31).
+  are single-addressed: finch 51, wren 31).
 
 **Conclusion:** the topology proves **N_read = 1** for the overwhelming majority
 of the 93 spans. `N_read = 2` is therefore **NOT** a subscriber measurement; it
@@ -333,8 +333,8 @@ comparisons must hold every constant fixed.
 ## Validation (cross-checks against documented receipts)
 
 - **Relay storm is real, not a modeling artifact.** #96 reports 116/172 relays
-  were skippy↔bilby bounces; Langfuse independently shows one task with 58
-  relays (of 72 total) targeting exactly bilby (51) and skippy (31). The measured
+  were wren↔finch bounces; Langfuse independently shows one task with 58
+  relays (of 72 total) targeting exactly finch (51) and wren (31). The measured
   structure corroborates the receipt; this holds at any N.
 - **Budget-cap consistency (#96).** The storm task's modeled per-reader index
   (825,300 index-tok) is the model applied to the **63 spans actually observed**

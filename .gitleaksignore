@@ -3,3 +3,4 @@ packages/fleet-nats/tests/test_tracing.py:generic-api-key:65
 packages/fleet-nats/tests/test_tracing.py:generic-api-key:240
 packages/fleet-nats/tests/test_showwork.py:generic-api-key:398
 packages/fleet-nats/src/fleet_nats/redaction_patterns.toml:aws-amazon-bedrock-api-key-short-lived:270
+packages/fleet-nats/src/fleet_nats/redaction_patterns.toml:aws-amazon-bedrock-api-key-short-lived:273

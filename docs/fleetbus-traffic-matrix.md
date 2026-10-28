@@ -77,7 +77,7 @@ Consequences that reviewers must preserve:
 - **The coordination contract is unchanged.** A non-actionable send still reaches
   neither the `status` lane nor the done sentinel.
 
-### `factory.runner` — plane constraint and the nagatha grant (#222)
+### `factory.runner` — plane constraint and the heron grant (#222)
 
 This lane is answered here rather than left to the checklist because it is the
 only lane whose **publisher is untrusted by design**.
@@ -92,11 +92,11 @@ only lane whose **publisher is untrusted by design**.
   lane into a model is a prompt-injection path from untrusted repository content
   straight into a fleet agent's context. Relabelling it telemetry does not make
   it safe (see the plane-boundary rule above).
-- **Why nagatha holds a subscribe grant anyway.** `deploy/nats/fleet-prod-nats-server.conf`
+- **Why heron holds a subscribe grant anyway.** `deploy/nats/fleet-prod-nats-server.conf`
   §4b grants the manager `{env}.factory.runner.*` **subscribe-only** so the
   hub can observe factory progress, and the grant is deliberately absent from
   its publish list (pinned by `test_authz_conf.py::test_manager_grants_exact`)
-  so a manager can never forge runner telemetry. Nagatha is also the principal
+  so a manager can never forge runner telemetry. Heron is also the principal
   that runs `_forge_turn`, so this grant is the one seam where an app-plane
   lane meets an LLM-hosting principal. It is safe **only** while no code routes
   a `factory.runner.*` envelope into a turn. Any change that subscribes this

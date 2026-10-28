@@ -25,8 +25,8 @@ def _session(task_id: str) -> CoordinationSession:
     return CoordinationSession(
         task_id=task_id,
         channel="ops",
-        manager="nagatha",
-        workers=("skippy",),
+        manager="heron",
+        workers=("wren",),
         state=State.WORKING,
     )
 
@@ -221,7 +221,7 @@ async def _busy_hub_and_worker(
 
     def _hub_callback() -> None:
         """The queued coordination callback uses the real fleet-wide Governor gate."""
-        action = Action(kind=ActionKind.DISPATCH, session=_session("backlog"), target="skippy")
+        action = Action(kind=ActionKind.DISPATCH, session=_session("backlog"), target="wren")
         if governor.gate(action).kind is ActionKind.NOOP:
             hub_gated.set()
         if not stop.is_set():
