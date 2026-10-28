@@ -42,8 +42,8 @@ pytestmark = pytest.mark.skipif(
 )
 
 _ENVS = ("dev", "prod")
-_WORKERS = ("skippy", "bilby")
-_MANAGER = "nagatha"
+_WORKERS = ("wren", "finch")
+_MANAGER = "heron"
 
 _FLEET_USERS = frozenset(
     {
@@ -266,7 +266,7 @@ def _manager_grants() -> tuple[set[str], set[str]]:
             # in the subscribe set and deliberately NOT in the publish set, so a
             # manager can observe factory progress but cannot forge it.
             subjects.factory_runner_wildcard(env),
-            "_INBOX.nagatha.>",
+            "_INBOX.heron.>",
         }
         pub |= {
             subjects.agent_dispatch(env, subjects.STAR, channel=subjects.STAR),
@@ -440,9 +440,9 @@ async def test_real_server_enforces_representative_account_and_grant_shapes(
     }
     env = {
         **os.environ,
-        "FLEET_NATS_PW_NAGATHA": passwords["nagatha"],
-        "FLEET_NATS_PW_SKIPPY": passwords["skippy"],
-        "FLEET_NATS_PW_BILBY": passwords["bilby"],
+        "FLEET_NATS_PW_HERON": passwords["heron"],
+        "FLEET_NATS_PW_WREN": passwords["wren"],
+        "FLEET_NATS_PW_FINCH": passwords["finch"],
         "FLEET_NATS_PW_HUB_CONTROL": passwords["fleet-hub-control"],
         "FLEET_NATS_PW_OPEN_BRAIN": passwords["open-brain"],
         "FLEET_NATS_PW_KBOARD": passwords["fleet-kboard"],
@@ -471,17 +471,17 @@ async def test_real_server_enforces_representative_account_and_grant_shapes(
             clients.append(client)
             return client
 
-        manager = await connect("nagatha")
-        worker = await connect("skippy")
+        manager = await connect("heron")
+        worker = await connect("wren")
         control = await connect("fleet-hub-control")
         local_dev = await connect("local-dev")
         sys_operator = await connect("fleet-sys-operator")
 
-        own_dispatch = await worker.subscribe("dev.agent.dispatch.skippy")
-        cross_dispatch = await worker.subscribe("dev.agent.dispatch.bilby")
+        own_dispatch = await worker.subscribe("dev.agent.dispatch.wren")
+        cross_dispatch = await worker.subscribe("dev.agent.dispatch.finch")
         await worker.flush()
-        await manager.publish("dev.agent.dispatch.skippy", b"allowed")
-        await manager.publish("dev.agent.dispatch.bilby", b"cross-list")
+        await manager.publish("dev.agent.dispatch.wren", b"allowed")
+        await manager.publish("dev.agent.dispatch.finch", b"cross-list")
         await manager.flush()
         assert (await own_dispatch.next_msg(timeout=1)).data == b"allowed"
         with pytest.raises(TimeoutError):
@@ -493,9 +493,9 @@ async def test_real_server_enforces_representative_account_and_grant_shapes(
         await control.flush()
         assert (await control_received.next_msg(timeout=1)).data == b"allowed"
 
-        direct_received = await worker.subscribe("dev.direct.skippy")
+        direct_received = await worker.subscribe("dev.direct.wren")
         await worker.flush()
-        await local_dev.publish("dev.direct.skippy", b"allowed")
+        await local_dev.publish("dev.direct.wren", b"allowed")
         await local_dev.flush()
         assert (await direct_received.next_msg(timeout=1)).data == b"allowed"
 
@@ -508,9 +508,9 @@ async def test_real_server_enforces_representative_account_and_grant_shapes(
         reply = await worker.request("dev.agent.claim.test", b"request", timeout=1)
         assert reply.data == b"manager-response"
 
-        cross_reply_inbox = await worker.subscribe("_INBOX.skippy.>")
-        forbidden_cross_inbox = await connect("bilby")
-        forbidden_reply_inbox = await forbidden_cross_inbox.subscribe("_INBOX.skippy.>")
+        cross_reply_inbox = await worker.subscribe("_INBOX.wren.>")
+        forbidden_cross_inbox = await connect("finch")
+        forbidden_reply_inbox = await forbidden_cross_inbox.subscribe("_INBOX.wren.>")
         await worker.flush()
         await forbidden_cross_inbox.flush()
 
@@ -557,11 +557,11 @@ async def test_real_server_enforces_representative_account_and_grant_shapes(
         # attach to any of these could receive instructions, which is the one
         # thing its threat model forbids.
         for forbidden in (
-            "dev.agent.dispatch.skippy",
-            "dev.agent.relay.skippy",
-            "dev.agent.wake.skippy",
-            "dev.agent.inbox.nagatha",
-            "dev.agent.token_cost.skippy",
+            "dev.agent.dispatch.wren",
+            "dev.agent.relay.wren",
+            "dev.agent.wake.wren",
+            "dev.agent.inbox.heron",
+            "dev.agent.token_cost.wren",
             "dev.hub.control.test",
             ">",
         ):
@@ -578,7 +578,7 @@ async def test_real_server_enforces_representative_account_and_grant_shapes(
         # runner that can publish onto a coordination lane could inject work or
         # forge another principal's traffic even while deaf.
         for forbidden_pub in (
-            "dev.agent.dispatch.skippy",
+            "dev.agent.dispatch.wren",
             "dev.agent.status.task-1",
             "dev.agent.heartbeat.fleet-runner",
             "dev.kboard.task.completed.task-1",
@@ -595,13 +595,13 @@ async def test_real_server_enforces_representative_account_and_grant_shapes(
 
         mismatched_creds_identity = await nats.connect(
             url,
-            user="skippy",
-            password=passwords["skippy"],
-            inbox_prefix="_INBOX.bilby",
+            user="wren",
+            password=passwords["wren"],
+            inbox_prefix="_INBOX.finch",
             error_cb=capture_authz_failure,
         )
         clients.append(mismatched_creds_identity)
-        await mismatched_creds_identity.subscribe("_INBOX.bilby.>")
+        await mismatched_creds_identity.subscribe("_INBOX.finch.>")
         await mismatched_creds_identity.flush()
         deadline = time.monotonic() + 1
         while not authz_failures and time.monotonic() < deadline:

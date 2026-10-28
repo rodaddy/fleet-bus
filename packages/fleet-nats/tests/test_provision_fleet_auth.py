@@ -16,9 +16,9 @@ _CONF = _ROOT / "deploy/nats/fleet-prod-nats-server.conf"
 pytestmark = pytest.mark.skipif(not _SCRIPT.is_file(), reason="deploy tree absent")
 
 _PRINCIPALS = {
-    "NAGATHA": "nagatha",
-    "SKIPPY": "skippy",
-    "BILBY": "bilby",
+    "HERON": "heron",
+    "WREN": "wren",
+    "FINCH": "finch",
     "HUB_CONTROL": "fleet-hub-control",
     "OPEN_BRAIN": "open-brain",
     "KBOARD": "fleet-kboard",
@@ -122,19 +122,19 @@ def test_direct_check_rejects_stale_password_only_material(tmp_path: Path) -> No
 
 def test_direct_install_rejects_username_drift_before_install(tmp_path: Path) -> None:
     env_file = tmp_path / "drift.env"
-    _write_env(env_file, drift=("SKIPPY", "bilby"))
+    _write_env(env_file, drift=("WREN", "finch"))
     result = _run(tmp_path, "install", env_file)
     assert result.returncode != 0
-    assert "identity mismatch for FLEET_NATS_PW_SKIPPY" in result.stderr
+    assert "identity mismatch for FLEET_NATS_PW_WREN" in result.stderr
     assert not (tmp_path / "installed.conf").exists()
 
 
 def test_direct_install_rejects_drifted_password_before_install(tmp_path: Path) -> None:
     env_file = tmp_path / "drifted-password.env"
-    _write_env(env_file, password_drift="SKIPPY")
+    _write_env(env_file, password_drift="WREN")
     result = _run(tmp_path, "install", env_file)
     assert result.returncode != 0
-    assert "vault credential mismatch for fleet-nats-skippy" in result.stderr
+    assert "vault credential mismatch for fleet-nats-wren" in result.stderr
     assert "B" * 32 not in result.stderr
     assert not (tmp_path / "installed.conf").exists()
 
