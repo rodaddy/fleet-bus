@@ -118,6 +118,15 @@ Unit tests run anywhere. Tests named `*_live.py` need a reachable NATS server
 and real agents and skip themselves otherwise. The shell tests in
 `tests/*.test.sh` exercise the deploy scripts against local fixtures.
 
+## How it was built
+
+fleet-bus was built in July 2026 in planned goal runs: a written master plan,
+executable checkers for each plan item, AI agents writing code in parallel
+lanes, and review by a second model family before merge. The build story
+covers the timeline, the six written contracts, the design decisions, how the
+system is tested, and what had to change after it ran:
+[docs/BUILD-STORY.md](docs/BUILD-STORY.md).
+
 ## Project status
 
 Experimental. The author ran this code for a three-agent fleet on a private
