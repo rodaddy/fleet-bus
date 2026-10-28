@@ -24,12 +24,12 @@ from fleet_orchestrator.state import Event, EventKind
 def _is_mentioned(peer: str, lowered_text: str, mention_token: str) -> bool:
     """Whether ``peer`` is @-mentioned in ``lowered_text`` on a token boundary.
 
-    A plain substring test would falsely count ``@bilbylicious`` or
-    ``email@bilby.com`` as a mention of ``bilby`` and suppress a real
+    A plain substring test would falsely count ``@finchlicious`` or
+    ``email@finch.com`` as a mention of ``finch`` and suppress a real
     missing-handoff (a false negative → the coordination stall this whole path
     exists to catch). We require the mention sigil to start a token (not be
-    preceded by a word char, so ``email@bilby`` does not count) and the peer name
-    to end on a boundary (not be followed by a word char, so ``@bilbylicious``
+    preceded by a word char, so ``email@finch`` does not count) and the peer name
+    to end on a boundary (not be followed by a word char, so ``@finchlicious``
     does not count).
     """
     pattern = rf"(?<!\w){re.escape(mention_token)}{re.escape(peer.lower())}(?!\w)"

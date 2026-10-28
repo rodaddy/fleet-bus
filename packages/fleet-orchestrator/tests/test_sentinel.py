@@ -8,11 +8,11 @@ from fleet_orchestrator import EventKind, done_envelope, is_done_envelope, parse
 
 
 def test_done_envelope_shape() -> None:
-    env = done_envelope(msg_id="m1", ts="t", sender="skippy", task_id="task-1", outcome="completed")
+    env = done_envelope(msg_id="m1", ts="t", sender="wren", task_id="task-1", outcome="completed")
     assert env.kind == "done"
     assert env.task_id == "task-1"
     assert env.payload == {
-        "header": {"actor": "skippy"},
+        "header": {"actor": "wren"},
         "data": {"task_id": "task-1", "outcome": "completed"},
         "extras": {},
         "footer": {},
@@ -24,25 +24,25 @@ def test_done_envelope_shape() -> None:
 
 
 def test_done_envelope_default_outcome() -> None:
-    env = done_envelope(msg_id="m1", ts="t", sender="skippy", task_id="task-1")
+    env = done_envelope(msg_id="m1", ts="t", sender="wren", task_id="task-1")
     assert env.payload["data"]["outcome"] == "completed"
 
 
 def test_parse_done_returns_done_event() -> None:
-    env = done_envelope(msg_id="m1", ts="t", sender="skippy", task_id="task-1", outcome="ok")
+    env = done_envelope(msg_id="m1", ts="t", sender="wren", task_id="task-1", outcome="ok")
     event = parse_done(env)
     assert event is not None
     assert event.kind is EventKind.DONE
-    assert event.actor == "skippy"
+    assert event.actor == "wren"
     assert event.outcome == "ok"
 
 
 def test_parse_done_reads_typed_done_after_wire_round_trip() -> None:
-    env = done_envelope(msg_id="m1", ts="t", sender="skippy", task_id="task-1", outcome="ok")
+    env = done_envelope(msg_id="m1", ts="t", sender="wren", task_id="task-1", outcome="ok")
     event = parse_done(Envelope.from_bytes(env.to_bytes()))
     assert event is not None
     assert event.kind is EventKind.DONE
-    assert event.actor == "skippy"
+    assert event.actor == "wren"
     assert event.outcome == "ok"
 
 
@@ -50,7 +50,7 @@ def test_parse_done_prefers_typed_done_outcome() -> None:
     env = Envelope.new(
         msg_id="m1",
         ts="t",
-        sender="skippy",
+        sender="wren",
         kind="done",
         payload={"task_id": "payload-task", "outcome": "payload-outcome"},
         typed_signal=Done(task_id="typed-task", outcome="typed-outcome"),
@@ -61,13 +61,13 @@ def test_parse_done_prefers_typed_done_outcome() -> None:
 
 
 def test_parse_done_ignores_non_done_envelope() -> None:
-    env = Envelope.new(msg_id="m1", ts="t", sender="skippy", kind="status", task_id="t1")
+    env = Envelope.new(msg_id="m1", ts="t", sender="wren", kind="status", task_id="t1")
     assert parse_done(env) is None
 
 
 def test_parse_done_rejects_sentinel_without_task_id() -> None:
     # A done signal that names no task can't advance any session — reject it.
-    env = Envelope.new(msg_id="m1", ts="t", sender="skippy", kind="done", payload={})
+    env = Envelope.new(msg_id="m1", ts="t", sender="wren", kind="done", payload={})
     assert parse_done(env) is None
 
 
@@ -77,10 +77,10 @@ def test_parse_done_recovers_task_id_from_nested_data_slot() -> None:
     env = Envelope.new(
         msg_id="m1",
         ts="t",
-        sender="skippy",
+        sender="wren",
         kind="done",
         payload={
-            "header": {"actor": "skippy"},
+            "header": {"actor": "wren"},
             "data": {"task_id": "t9", "outcome": "ok"},
             "extras": {},
             "footer": {},
@@ -94,7 +94,7 @@ def test_parse_done_recovers_task_id_from_nested_data_slot() -> None:
 def test_parse_done_recovers_task_id_from_flat_payload_back_compat() -> None:
     # Back-compat: a mid-deploy old-format sentinel carries task_id/outcome flat
     # at the top level (pre-Payload wrapping). The fallback still parses it.
-    env = Envelope.new(msg_id="m1", ts="t", sender="skippy", kind="done", payload={"task_id": "t9"})
+    env = Envelope.new(msg_id="m1", ts="t", sender="wren", kind="done", payload={"task_id": "t9"})
     event = parse_done(env)
     assert event is not None
     assert event.outcome == "completed"

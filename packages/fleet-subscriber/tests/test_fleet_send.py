@@ -61,7 +61,7 @@ def _install_fake_bus(monkeypatch: pytest.MonkeyPatch, fake: FakeBus) -> None:
     monkeypatch.setattr(fs, "FleetBus", lambda cfg: fake)
 
 
-def _manager_env(monkeypatch: pytest.MonkeyPatch, *, agent: str = "nagatha") -> None:
+def _manager_env(monkeypatch: pytest.MonkeyPatch, *, agent: str = "heron") -> None:
     monkeypatch.setenv("FLEET_AGENT_ID", agent)
     monkeypatch.setenv("FLEET_ENV", "dev")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://192.0.2.74:4222")
@@ -88,7 +88,7 @@ def test_manager_registers_the_tool(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_worker_role_gets_no_tool(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.setenv("FLEET_ROLE", "worker")
     ctx = StubCtx()
     registered = register_fleet_send(ctx)
@@ -98,7 +98,7 @@ def test_worker_role_gets_no_tool(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_unset_role_defaults_to_worker_no_tool(monkeypatch: pytest.MonkeyPatch) -> None:
     # Unset FLEET_ROLE → worker (least-capable default) → no free-send tool.
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.delenv("FLEET_ROLE", raising=False)
     ctx = StubCtx()
     assert register_fleet_send(ctx) is False
@@ -109,12 +109,12 @@ def test_unset_role_defaults_to_worker_no_tool(monkeypatch: pytest.MonkeyPatch) 
 
 
 async def test_publish_shape_correct(monkeypatch: pytest.MonkeyPatch) -> None:
-    _manager_env(monkeypatch, agent="nagatha")
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    _manager_env(monkeypatch, agent="heron")
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
 
     result = await fs._fleet_send(
-        {"to": "bilby", "text": "join the arena deliberation", "channel": "arena"}
+        {"to": "finch", "text": "join the arena deliberation", "channel": "arena"}
     )
 
     assert fake.connected is True
@@ -122,10 +122,10 @@ async def test_publish_shape_correct(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(fake.published) == 1
     subject, env = fake.published[0]
     # dispatch is the lane a worker's subscriber forges into a turn.
-    assert subject == subjects.agent_dispatch("dev", "bilby", channel="arena")
+    assert subject == subjects.agent_dispatch("dev", "finch", channel="arena")
     assert env.kind == "dispatch"
-    assert env.sender == "nagatha"
-    assert env.to == "bilby"
+    assert env.sender == "heron"
+    assert env.to == "finch"
     assert env.channel == "arena"
     # payload.text is what envelope_to_message turns into the worker's turn prompt.
     assert env.payload["text"] == "join the arena deliberation"
@@ -133,18 +133,18 @@ async def test_publish_shape_correct(monkeypatch: pytest.MonkeyPatch) -> None:
     assert env.task_id is not None and env.task_id.startswith("t_chat")
     # Human/model-readable success string, not an error.
     assert "error" not in result
-    assert "bilby" in result
+    assert "finch" in result
 
 
 async def test_channel_defaults_to_arena(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
 
-    await fs._fleet_send({"to": "skippy", "text": "steering note"})
+    await fs._fleet_send({"to": "wren", "text": "steering note"})
 
     subject, env = fake.published[0]
-    assert subject == subjects.agent_dispatch("dev", "skippy", channel="arena")
+    assert subject == subjects.agent_dispatch("dev", "wren", channel="arena")
     assert env.channel == "arena"
 
 
@@ -160,7 +160,7 @@ async def test_missing_agent_id_fails_loud(monkeypatch: pytest.MonkeyPatch) -> N
     fake = FakeBus(config=BusConfig.from_env())
     _install_fake_bus(monkeypatch, fake)
 
-    result = await fs._fleet_send({"to": "bilby", "text": "hi"})
+    result = await fs._fleet_send({"to": "finch", "text": "hi"})
     payload = json.loads(result)
     assert "FLEET_AGENT_ID" in payload["error"]
     # Nothing published under a bogus identity.
@@ -173,7 +173,7 @@ async def test_missing_agent_id_fails_loud(monkeypatch: pytest.MonkeyPatch) -> N
 
 async def test_missing_to_returns_error(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     result = await fs._fleet_send({"text": "no target"})
     assert "'to'" in json.loads(result)["error"]
@@ -182,9 +182,9 @@ async def test_missing_to_returns_error(monkeypatch: pytest.MonkeyPatch) -> None
 
 async def test_missing_text_returns_error(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
-    result = await fs._fleet_send({"to": "bilby"})
+    result = await fs._fleet_send({"to": "finch"})
     assert "'text'" in json.loads(result)["error"]
     assert fake.published == []
 
@@ -194,12 +194,12 @@ async def test_missing_text_returns_error(monkeypatch: pytest.MonkeyPatch) -> No
 
 async def test_task_id_inherited_from_bus_context(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
 
     token = current_bus_task_id.set("k123")
     try:
-        await fs._fleet_send({"to": "bilby", "text": "deliberate on k123"})
+        await fs._fleet_send({"to": "finch", "text": "deliberate on k123"})
     finally:
         current_bus_task_id.reset(token)
 
@@ -210,12 +210,12 @@ async def test_task_id_inherited_from_bus_context(monkeypatch: pytest.MonkeyPatc
 
 async def test_explicit_task_id_overrides_context(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
 
     token = current_bus_task_id.set("k123")
     try:
-        await fs._fleet_send({"to": "bilby", "text": "hi", "task_id": "k999"})
+        await fs._fleet_send({"to": "finch", "text": "hi", "task_id": "k999"})
     finally:
         current_bus_task_id.reset(token)
 
@@ -225,11 +225,11 @@ async def test_explicit_task_id_overrides_context(monkeypatch: pytest.MonkeyPatc
 
 async def test_task_id_minted_when_no_context(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
-    fake = FakeBus(config=BusConfig.from_env("nagatha"))
+    fake = FakeBus(config=BusConfig.from_env("heron"))
     _install_fake_bus(monkeypatch, fake)
     # No contextvar set (default None) → fresh chat id.
     assert current_bus_task_id.get() is None
-    await fs._fleet_send({"to": "bilby", "text": "cold start"})
+    await fs._fleet_send({"to": "finch", "text": "cold start"})
     _, env = fake.published[0]
     assert env.task_id is not None and env.task_id.startswith("t_chat")
 
@@ -240,12 +240,12 @@ async def test_task_id_minted_when_no_context(monkeypatch: pytest.MonkeyPatch) -
 async def test_publish_failure_returns_error_not_raise(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
     fake = FakeBus(
-        config=BusConfig.from_env("nagatha"),
+        config=BusConfig.from_env("heron"),
         publish_error=RuntimeError("bus wedged"),
     )
     _install_fake_bus(monkeypatch, fake)
-    result = await fs._fleet_send({"to": "bilby", "text": "hi"})
-    assert "publish to bilby failed" in json.loads(result)["error"]
+    result = await fs._fleet_send({"to": "finch", "text": "hi"})
+    assert "publish to finch failed" in json.loads(result)["error"]
     # The connection is still torn down on the failure path.
     assert fake.closed is True
 
@@ -253,10 +253,10 @@ async def test_publish_failure_returns_error_not_raise(monkeypatch: pytest.Monke
 async def test_connect_failure_returns_error_not_raise(monkeypatch: pytest.MonkeyPatch) -> None:
     _manager_env(monkeypatch)
     fake = FakeBus(
-        config=BusConfig.from_env("nagatha"),
+        config=BusConfig.from_env("heron"),
         connect_error=TimeoutError("server down"),
     )
     _install_fake_bus(monkeypatch, fake)
-    result = await fs._fleet_send({"to": "bilby", "text": "hi"})
+    result = await fs._fleet_send({"to": "finch", "text": "hi"})
     assert "failed" in json.loads(result)["error"]
     assert fake.closed is True

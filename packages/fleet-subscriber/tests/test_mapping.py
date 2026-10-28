@@ -9,7 +9,7 @@ from fleet_subscriber import SyntheticMessage, envelope_to_message
 
 def _env(**kw: object) -> Envelope:
     base: dict[str, object] = dict(
-        msg_id="m1", ts="t", sender="nagatha", kind="dispatch", task_id="task-1"
+        msg_id="m1", ts="t", sender="heron", kind="dispatch", task_id="task-1"
     )
     base.update(kw)
     return Envelope.new(**base)  # type: ignore[arg-type]

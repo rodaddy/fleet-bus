@@ -1,7 +1,7 @@
 """Cross-agent scorekeeper + decider — the anti-circlejerk half (#17, Phase 6).
 
 The orchestrator sees ALL turns on the shared bus, so it — and only it — can
-count the back-and-forth between Skippy and Bilby deterministically. A single
+count the back-and-forth between Wren and Finch deterministically. A single
 agent gate (the agent runtime's turn-signal hook) sees only its own turns; the cross-agent count is
 real *here*. This module keeps that score and, on non-convergence, decides.
 
@@ -31,7 +31,7 @@ no randomness anywhere**:
    (dissent-backed AND fact-pulled wins), or returns a ``SYNTHESIZE`` decision
    when the score cannot decide. The synthesize path is NOT gate logic: the
    caller dispatches a NORMAL agent turn to the manager's own inbox
-   (:func:`assign_synthesis`) — Nagatha arbitrates by taking a turn, never by
+   (:func:`assign_synthesis`) — Heron arbitrates by taking a turn, never by
    rewriting worker output.
 """
 
@@ -482,7 +482,7 @@ class DecisionKind(StrEnum):
     Attributes:
         DECIDE: One agent's evidenced position wins — ``winner`` names it.
         SYNTHESIZE: The score cannot decide (all unsigned, or a true tie);
-            Nagatha takes a synthesis TURN (never gate logic — the caller
+            Heron takes a synthesis TURN (never gate logic — the caller
             dispatches a normal agent turn to the manager's own inbox).
     """
 
@@ -628,7 +628,7 @@ async def assign_synthesis(
 ) -> None:
     """Dispatch a synthesis TURN to the manager's own inbox (not gate logic).
 
-    On a ``SYNTHESIZE`` decision Nagatha does not rewrite worker output; she takes
+    On a ``SYNTHESIZE`` decision Heron does not rewrite worker output; she takes
     a turn. This publishes a dispatch envelope carrying a TEMPLATED instruction
     (ids/state-words only, no worker prose) to ``agent_inbox(env, manager)``, so
     the manager runs the synthesis as a normal agent turn through her own gateway.

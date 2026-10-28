@@ -37,7 +37,7 @@ def test_config_credential_source_reexports_fleet_core_contract() -> None:
 
 
 def test_config_defaults_valid() -> None:
-    cfg = BusConfig(agent_id="nagatha")
+    cfg = BusConfig(agent_id="heron")
     assert cfg.url.startswith("nats://")
     assert cfg.env == "dev"
 
@@ -185,7 +185,7 @@ def test_config_staging_malformed_prod_url_still_refused(malformed_prod: str) ->
 
 def test_config_prod_env_on_prod_url_is_allowed() -> None:
     # The guard is staging-only: prod ON prod is exactly correct, never blocked.
-    cfg = BusConfig(agent_id="nagatha", env="prod", url=_PROD_URL)
+    cfg = BusConfig(agent_id="heron", env="prod", url=_PROD_URL)
     assert cfg.env == "prod"
 
 
@@ -262,11 +262,11 @@ def test_config_from_env_default_url_missing_env_still_defaults_dev(
 
 def test_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FLEET_NATS_URL", "nats://10.0.0.1:4222")
-    monkeypatch.setenv("FLEET_AGENT_ID", "bilby")
+    monkeypatch.setenv("FLEET_AGENT_ID", "finch")
     monkeypatch.setenv("FLEET_ENV", "prod")
     cfg = BusConfig.from_env()
     assert cfg.url == "nats://10.0.0.1:4222"
-    assert cfg.agent_id == "bilby"
+    assert cfg.agent_id == "finch"
     assert cfg.env == "prod"
 
 
@@ -353,22 +353,22 @@ def test_check_enforcement_config_no_floor_with_url_is_quiet() -> None:
 
 
 def test_subjects_mirror_dash_convention() -> None:
-    assert subjects.agent_dispatch("dev", "skippy") == "dev.agent.dispatch.skippy"
+    assert subjects.agent_dispatch("dev", "wren") == "dev.agent.dispatch.wren"
     assert subjects.agent_status("prod", "t_123") == "prod.agent.status.t_123"
-    assert subjects.agent_inbox("dev", "nagatha") == "dev.agent.inbox.nagatha"
+    assert subjects.agent_inbox("dev", "heron") == "dev.agent.inbox.heron"
 
 
 def test_subjects_carry_staging_env_prefix() -> None:
     # #105: the {env} token flows cleanly — a staging client builds staging
     # subjects with no code change to subjects.py (registry templates too).
-    assert subjects.agent_dispatch("staging", "skippy") == "staging.agent.dispatch.skippy"
-    assert subjects.agent_inbox("staging", "nagatha") == "staging.agent.inbox.nagatha"
+    assert subjects.agent_dispatch("staging", "wren") == "staging.agent.dispatch.wren"
+    assert subjects.agent_inbox("staging", "heron") == "staging.agent.inbox.heron"
     assert subjects.wildcard("staging", "agent") == "staging.agent.>"
 
 
 def test_subject_per_channel_isolation() -> None:
-    s = subjects.agent_dispatch("dev", "bilby", channel="all-agents")
-    assert s == "dev.agent.all-agents.dispatch.bilby"
+    s = subjects.agent_dispatch("dev", "finch", channel="all-agents")
+    assert s == "dev.agent.all-agents.dispatch.finch"
 
 
 def test_subject_slugging_normalises_tokens() -> None:
@@ -393,13 +393,13 @@ def test_dispatch_wildcard_matches_per_channel_publish_form() -> None:
     # the per-channel form, which has one more token than the bare form — so a
     # bare-form subscription alone never receives a real coordinated dispatch.
     # The wildcard must match the publish form; the bare form covers channel-less.
-    wildcard = subjects.agent_dispatch_wildcard("dev", "skippy")
-    assert wildcard == "dev.agent.*.dispatch.skippy"
-    per_channel = subjects.agent_dispatch("dev", "skippy", channel="all-agents")
-    bare = subjects.agent_dispatch("dev", "skippy")
+    wildcard = subjects.agent_dispatch_wildcard("dev", "wren")
+    assert wildcard == "dev.agent.*.dispatch.wren"
+    per_channel = subjects.agent_dispatch("dev", "wren", channel="all-agents")
+    bare = subjects.agent_dispatch("dev", "wren")
     assert _nats_match(wildcard, per_channel)
     assert not _nats_match(wildcard, bare)  # token counts differ — both forms needed
-    assert not _nats_match(wildcard, subjects.agent_dispatch("dev", "bilby", channel="c"))
+    assert not _nats_match(wildcard, subjects.agent_dispatch("dev", "finch", channel="c"))
 
 
 def test_hub_control_subject_and_wildcard() -> None:
@@ -420,7 +420,7 @@ def test_slug_rejects_empty_normalisation() -> None:
     # A whitespace-only token must fail loud, not publish an invalid subject
     # like "dev.agent..dispatch.w" the server would reject (message lost).
     with pytest.raises(ValueError, match="normalises to empty"):
-        subjects.agent_dispatch("dev", "skippy", channel="   ")
+        subjects.agent_dispatch("dev", "wren", channel="   ")
     with pytest.raises(ValueError, match="normalises to empty"):
         subjects.agent_status("dev", "")
 
@@ -473,7 +473,7 @@ def test_assert_publishable_refuses_wildcards_but_passes_concrete_subjects() -> 
     for bad in (
         subjects.agent_status("dev", "task-1", channel=subjects.STAR),
         subjects.agent_status_wildcard("dev", "task-1"),
-        subjects.agent_relay("dev", "skippy", channel=subjects.STAR),
+        subjects.agent_relay("dev", "wren", channel=subjects.STAR),
         subjects.factory_runner("prod", subjects.STAR),
         "dev.agent.>",
     ):
@@ -492,11 +492,11 @@ def test_assert_publishable_refuses_wildcards_but_passes_concrete_subjects() -> 
 
 # Canary built at runtime so secret scanners never see a password-shaped literal.
 _SECRET_PASSWORD = "-".join(("zz", "repr", "canary", "zz"))  # noqa: S105 — synthetic marker
-_SECRET_CREDS_PATH = "/etc/fleet/agents/nagatha-secret-layout.creds"
+_SECRET_CREDS_PATH = "/etc/fleet/agents/heron-secret-layout.creds"
 
 
 def test_auth_credentials_repr_redacts_password() -> None:
-    auth = AuthCredentials(user="nagatha", password=_SECRET_PASSWORD)
+    auth = AuthCredentials(user="heron", password=_SECRET_PASSWORD)
     for rendered in (repr(auth), str(auth), f"{auth}"):
         assert _SECRET_PASSWORD not in rendered
         assert "set" in rendered  # field state surfaced, value hidden
@@ -510,7 +510,7 @@ def test_auth_credentials_repr_redacts_creds_path() -> None:
 
 
 def test_auth_credentials_repr_names_fields_and_states() -> None:
-    auth = AuthCredentials(user="nagatha", password=_SECRET_PASSWORD)
+    auth = AuthCredentials(user="heron", password=_SECRET_PASSWORD)
     rendered = repr(auth)
     # Field NAMES are safe to surface; only VALUES are redacted.
     assert "user=set" in rendered
@@ -519,13 +519,13 @@ def test_auth_credentials_repr_names_fields_and_states() -> None:
 
 
 def test_auth_credentials_attribute_access_and_equality() -> None:
-    auth = AuthCredentials(user="nagatha", password=_SECRET_PASSWORD)
+    auth = AuthCredentials(user="heron", password=_SECRET_PASSWORD)
     # bus.py reads these attributes by name — access must stay identical.
-    assert auth.user == "nagatha"
+    assert auth.user == "heron"
     assert auth.password == _SECRET_PASSWORD
     assert auth.user_credentials is None
     # Value-based equality still holds (frozen dataclass), and it is immutable.
-    assert auth == AuthCredentials(user="nagatha", password=_SECRET_PASSWORD)
+    assert auth == AuthCredentials(user="heron", password=_SECRET_PASSWORD)
     assert auth != AuthCredentials()
     with pytest.raises((AttributeError, TypeError)):
         auth.password = "mutated"  # type: ignore[misc]
@@ -533,7 +533,7 @@ def test_auth_credentials_attribute_access_and_equality() -> None:
 
 def test_require_auth_typo_raises_naming_var(monkeypatch: pytest.MonkeyPatch) -> None:
     # A typo must fail loud, not silently disable the operator's auth request.
-    monkeypatch.setenv("FLEET_AGENT_ID", "nagatha")
+    monkeypatch.setenv("FLEET_AGENT_ID", "heron")
     monkeypatch.setenv("FLEET_NATS_REQUIRE_AUTH", "treu")
     with pytest.raises(ValueError, match="FLEET_NATS_REQUIRE_AUTH"):
         BusConfig.from_env()
@@ -541,14 +541,14 @@ def test_require_auth_typo_raises_naming_var(monkeypatch: pytest.MonkeyPatch) ->
 
 @pytest.mark.parametrize("raw", ["1", "true", "TRUE", "Yes", "on", " True "])
 def test_require_auth_accepted_true_spellings(monkeypatch: pytest.MonkeyPatch, raw: str) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "nagatha")
+    monkeypatch.setenv("FLEET_AGENT_ID", "heron")
     monkeypatch.setenv("FLEET_NATS_REQUIRE_AUTH", raw)
     assert BusConfig.from_env().require_auth is True
 
 
 @pytest.mark.parametrize("raw", ["0", "false", "FALSE", "No", "off", " False "])
 def test_require_auth_accepted_false_spellings(monkeypatch: pytest.MonkeyPatch, raw: str) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "nagatha")
+    monkeypatch.setenv("FLEET_AGENT_ID", "heron")
     monkeypatch.setenv("FLEET_NATS_REQUIRE_AUTH", raw)
     assert BusConfig.from_env().require_auth is False
 
@@ -556,7 +556,7 @@ def test_require_auth_accepted_false_spellings(monkeypatch: pytest.MonkeyPatch, 
 def test_require_auth_unset_preserves_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "nagatha")
+    monkeypatch.setenv("FLEET_AGENT_ID", "heron")
     monkeypatch.delenv("FLEET_NATS_REQUIRE_AUTH", raising=False)
     assert BusConfig.from_env().require_auth is False
 
@@ -564,7 +564,7 @@ def test_require_auth_unset_preserves_default(
 def test_require_auth_empty_preserves_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "nagatha")
+    monkeypatch.setenv("FLEET_AGENT_ID", "heron")
     monkeypatch.setenv("FLEET_NATS_REQUIRE_AUTH", "   ")
     assert BusConfig.from_env().require_auth is False
 
@@ -755,9 +755,9 @@ def test_channel_scoping_is_not_access_control() -> None:
     live server grants use (``dev.agent.*.dispatch.*``) — still matches every
     channel's slice. Access control is the credential grant, not the subject.
     """
-    every_channel = subjects.agent_dispatch_wildcard("dev", "skippy")
+    every_channel = subjects.agent_dispatch_wildcard("dev", "wren")
     for channel in ("dash-dev", "dash-prod", "someone-elses-channel"):
-        assert _nats_match(every_channel, subjects.agent_dispatch("dev", "skippy", channel=channel))
+        assert _nats_match(every_channel, subjects.agent_dispatch("dev", "wren", channel=channel))
 
 
 def test_scoped_builders_reject_an_empty_channel_token() -> None:

@@ -198,9 +198,9 @@ def _counter_clock() -> IdClock:
 
 def _config(**overrides: Any) -> HubConfig:
     base: dict[str, Any] = dict(
-        bus=BusConfig(agent_id="nagatha", env="dev", url="nats://127.0.0.1:4222"),
-        manager="nagatha",
-        workers=("skippy", "bilby"),
+        bus=BusConfig(agent_id="heron", env="dev", url="nats://127.0.0.1:4222"),
+        manager="heron",
+        workers=("wren", "finch"),
         budget=Budget(max_msgs=200, max_tokens=150_000),
         dispatch_timeout_s=300.0,
         offline_poll_s=1.0,
@@ -268,49 +268,49 @@ def _created(task_id: str | None, **payload: Any) -> Envelope:
 
 
 def test_parse_intake_uses_default_workers_when_absent() -> None:
-    intake = parse_intake(_created("t-1"), default_workers=("skippy", "bilby"))
+    intake = parse_intake(_created("t-1"), default_workers=("wren", "finch"))
     assert intake is not None
     assert intake.task_id == "t-1"
-    assert intake.workers == ("skippy", "bilby")
+    assert intake.workers == ("wren", "finch")
 
 
 def test_parse_intake_honors_payload_workers() -> None:
-    env = _created("t-1", workers=["skippy"], channel="dash-dev")
-    intake = parse_intake(env, default_workers=("skippy", "bilby"))
+    env = _created("t-1", workers=["wren"], channel="dash-dev")
+    intake = parse_intake(env, default_workers=("wren", "finch"))
     assert intake is not None
-    assert intake.workers == ("skippy",)
+    assert intake.workers == ("wren",)
     assert intake.channel == "dash-dev"
 
 
 def test_parse_intake_rejects_bad_worker_list() -> None:
     # A malformed workers list falls back to the configured default (never crashes).
-    env = _created("t-1", workers=["skippy", 42])
-    intake = parse_intake(env, default_workers=("skippy", "bilby"))
+    env = _created("t-1", workers=["wren", 42])
+    intake = parse_intake(env, default_workers=("wren", "finch"))
     assert intake is not None
-    assert intake.workers == ("skippy", "bilby")
+    assert intake.workers == ("wren", "finch")
 
 
 def test_parse_intake_without_task_id_is_none() -> None:
-    assert parse_intake(_created(None), default_workers=("skippy",)) is None
+    assert parse_intake(_created(None), default_workers=("wren",)) is None
 
 
 def test_parse_intake_carries_task_text() -> None:
     # fleet-bus #52: the intake must carry the prompt text off the created payload.
     env = _created("t-1", text="do the thing", channel="dash-dev")
-    intake = parse_intake(env, default_workers=("skippy",))
+    intake = parse_intake(env, default_workers=("wren",))
     assert intake is not None
     assert intake.text == "do the thing"
 
 
 def test_parse_intake_text_defaults_empty_when_absent() -> None:
-    intake = parse_intake(_created("t-1"), default_workers=("skippy",))
+    intake = parse_intake(_created("t-1"), default_workers=("wren",))
     assert intake is not None
     assert intake.text == ""
 
 
 def test_parse_intake_non_string_text_becomes_empty() -> None:
     # A bogus non-string text must not reach the dispatch body — coerced to "".
-    intake = parse_intake(_created("t-1", text=42), default_workers=("skippy",))
+    intake = parse_intake(_created("t-1", text=42), default_workers=("wren",))
     assert intake is not None
     assert intake.text == ""
 
@@ -321,13 +321,13 @@ def test_parse_intake_non_string_text_becomes_empty() -> None:
 async def test_start_task_dispatches_and_persists_working() -> None:
     hub, bus, kboard, _clock = _hub()
     await hub.start()
-    session = await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    session = await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     assert session.state is State.WORKING
     # Dispatch fanned out to both workers on per-channel subjects.
     dispatch_subjects = {s for s, _ in bus.published if ".dispatch." in s}
     assert dispatch_subjects == {
-        subjects.agent_dispatch("dev", "skippy", channel="dash-dev"),
-        subjects.agent_dispatch("dev", "bilby", channel="dash-dev"),
+        subjects.agent_dispatch("dev", "wren", channel="dash-dev"),
+        subjects.agent_dispatch("dev", "finch", channel="dash-dev"),
     }
     # The WORKING transition was persisted durably to k-board (running status).
     assert ("t-1", "running") in kboard.statuses
@@ -344,9 +344,7 @@ async def test_start_task_dispatch_envelope_carries_payload_text() -> None:
     # never delivered a prompt to any worker.
     hub, bus, _kboard, _clock = _hub()
     await hub.start()
-    await hub.start_task(
-        IntakeTask("t-1", "dash-dev", ("skippy", "bilby"), text="build the widget")
-    )
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch"), text="build the widget"))
     dispatches = _dispatch_envelopes(bus)
     assert len(dispatches) == 2  # one per worker
     assert all(env.payload.get("text") == "build the widget" for env in dispatches)
@@ -370,7 +368,7 @@ async def test_start_task_warns_on_empty_text_but_still_dispatches() -> None:
     try:
         hub, bus, _kboard, _clock = _hub()
         await hub.start()
-        await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy",), text=""))
+        await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren",), text=""))
         await hub.aclose()
     finally:
         logger.remove(sink_id)
@@ -392,7 +390,7 @@ async def test_start_task_warns_on_whitespace_only_text() -> None:
     try:
         hub, _bus, _kboard, _clock = _hub()
         await hub.start()
-        await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy",), text="   \n\t "))
+        await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren",), text="   \n\t "))
         await hub.aclose()
     finally:
         logger.remove(sink_id)
@@ -449,9 +447,9 @@ async def test_poller_intake_dispatch_flows_text_end_to_end() -> None:
 async def test_start_task_is_idempotent_for_a_tracked_task() -> None:
     hub, bus, _kboard, _clock = _hub()
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     first = len(bus.published)
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     # Second intake for the same task publishes nothing new.
     assert len(bus.published) == first
     await hub.aclose()
@@ -471,23 +469,23 @@ async def test_intake_without_task_id_is_dropped() -> None:
 async def test_missing_handoff_fires_relay() -> None:
     hub, bus, _kboard, _clock = _hub()
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     status_subject = subjects.agent_status("dev", "t-1")
     assert len(bus.handlers[status_subject]) == 1
-    # skippy finishes without @-mentioning bilby → the orchestrator must relay.
+    # wren finishes without @-mentioning finch → the orchestrator must relay.
     await bus.deliver(
         status_subject,
         Envelope.new(
             msg_id="ws1",
             ts="t",
-            sender="skippy",
+            sender="wren",
             kind="status",
             task_id="t-1",
             payload={"text": "done my half"},
         ),
     )
     relayed = [
-        s for s, _ in bus.published if s == subjects.agent_relay("dev", "bilby", channel="dash-dev")
+        s for s, _ in bus.published if s == subjects.agent_relay("dev", "finch", channel="dash-dev")
     ]
     assert len(relayed) == 1, "one delivery must fire at most one relay"
     await hub.aclose()
@@ -499,11 +497,11 @@ async def test_missing_handoff_fires_relay() -> None:
 async def test_done_sentinel_persists_done_and_tears_down() -> None:
     hub, bus, kboard, _clock = _hub()
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     status_subject = subjects.agent_status("dev", "t-1")
     await bus.deliver(
         status_subject,
-        done_envelope(msg_id="dn1", ts="t", sender="bilby", task_id="t-1", outcome="completed"),
+        done_envelope(msg_id="dn1", ts="t", sender="finch", task_id="t-1", outcome="completed"),
     )
     # The task is no longer tracked, and DONE was persisted durably.
     assert not hub.is_tracking("t-1")
@@ -530,13 +528,13 @@ async def test_hydrated_paused_task_is_held_without_working_or_dispatch() -> Non
     hub, bus, kboard, _clock = _hub(dry_run=False)
     hub._governor.attach_store(store)  # noqa: SLF001 - durable hydrate seam
 
-    session = await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    session = await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
 
     assert session.state is State.DISPATCHED
     assert hub.is_tracking("t-1")
     assert ("t-1", "running") not in kboard.statuses
     assert not any(".dispatch." in subject for subject, _env in bus.published)
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    inbox = subjects.agent_inbox("dev", "heron")
     assert not any(subject == inbox for subject, _env in bus.published)
     await hub.aclose()
 
@@ -556,7 +554,7 @@ async def test_hydrated_nonterminal_task_resumes_counters_and_dispatches() -> No
     hub, bus, kboard, _clock = _hub()
     hub._governor.attach_store(store)  # noqa: SLF001 - durable hydrate seam
 
-    session = await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    session = await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
 
     assert session.state is State.WORKING
     assert hub._governor.snapshot("t-1")["msgs"] == 3  # noqa: SLF001
@@ -579,11 +577,11 @@ async def test_done_cleans_governor_state_before_teardown() -> None:
     }
     hub, bus, _kboard, _clock = _hub()
     hub._governor.attach_store(store)  # noqa: SLF001 - durable hydrate seam
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy",)))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren",)))
 
     await bus.deliver(
         subjects.agent_status("dev", "t-1"),
-        done_envelope(msg_id="dn1", ts="t", sender="skippy", task_id="t-1", outcome="completed"),
+        done_envelope(msg_id="dn1", ts="t", sender="wren", task_id="t-1", outcome="completed"),
     )
 
     assert not hub.is_tracking("t-1")
@@ -607,15 +605,15 @@ async def test_same_task_id_after_done_starts_with_clean_governor_state() -> Non
     }
     hub, bus, _kboard, _clock = _hub()
     hub._governor.attach_store(store)  # noqa: SLF001 - durable hydrate seam
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy",)))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren",)))
     await bus.deliver(
         subjects.agent_status("dev", "t-1"),
-        done_envelope(msg_id="dn1", ts="t", sender="skippy", task_id="t-1", outcome="completed"),
+        done_envelope(msg_id="dn1", ts="t", sender="wren", task_id="t-1", outcome="completed"),
     )
 
     restarted, bus_b, _kboard_b, _clock_b = _hub()
     restarted._governor.attach_store(store)  # noqa: SLF001 - durable hydrate seam
-    await restarted.start_task(IntakeTask("t-1", "dash-dev", ("skippy",)))
+    await restarted.start_task(IntakeTask("t-1", "dash-dev", ("wren",)))
 
     assert restarted._governor.snapshot("t-1")["msgs"] == 1  # noqa: SLF001
     assert restarted._governor.is_paused("t-1") is False  # noqa: SLF001
@@ -630,14 +628,14 @@ async def test_done_persist_uses_sentinel_outcome_not_a_cell() -> None:
     # the earlier split design had). A non-default outcome proves it flows through.
     hub, bus, kboard, _clock = _hub(dry_run=False)
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     await bus.deliver(
         subjects.agent_status("dev", "t-1"),
-        done_envelope(msg_id="dn1", ts="t", sender="bilby", task_id="t-1", outcome="abandoned"),
+        done_envelope(msg_id="dn1", ts="t", sender="finch", task_id="t-1", outcome="abandoned"),
     )
     assert ("t-1", "done") in kboard.statuses
     # The done narration beat carries the sentinel's own outcome word.
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    inbox = subjects.agent_inbox("dev", "heron")
     done_beats = [
         env for s, env in bus.published if s == inbox and "abandoned" in env.payload.get("text", "")
     ]
@@ -653,47 +651,47 @@ async def test_offline_poll_fires_wake_after_silence() -> None:
     # deterministically via poll_offline_once (no sleep race).
     hub, bus, _kboard, clock = _hub(dispatch_timeout_s=10.0, offline_poll_s=3600.0)
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy",)))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren",)))
     clock.advance(50.0)  # no worker signal, well past the dispatch timeout
     await hub.poll_offline_once()
     wake_subjects = [
-        s for s, _ in bus.published if s == subjects.agent_wake("dev", "skippy", channel="dash-dev")
+        s for s, _ in bus.published if s == subjects.agent_wake("dev", "wren", channel="dash-dev")
     ]
     assert wake_subjects, "the offline ladder should have woken the silent worker"
     await hub.aclose()
 
 
 async def test_offline_watches_each_worker_independently() -> None:
-    # A multi-worker task must watch EACH worker for silence. skippy answers,
-    # bilby stays silent → only bilby is woken. Proves the per-worker offline key
+    # A multi-worker task must watch EACH worker for silence. wren answers,
+    # finch stays silent → only finch is woken. Proves the per-worker offline key
     # (without it, note_dispatch overwrites and only the last worker is watched).
     hub, bus, _kboard, clock = _hub(dispatch_timeout_s=10.0, offline_poll_s=3600.0)
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     status_subject = subjects.agent_status("dev", "t-1")
     assert len(bus.handlers[status_subject]) == 1
-    # Time passes, THEN skippy signals — resetting only skippy's ladder to a fresh
-    # timestamp; bilby never signals and stays anchored at dispatch time.
+    # Time passes, THEN wren signals — resetting only wren's ladder to a fresh
+    # timestamp; finch never signals and stays anchored at dispatch time.
     clock.advance(45.0)
     await bus.deliver(
         status_subject,
         Envelope.new(
             msg_id="ws1",
             ts="t",
-            sender="skippy",
+            sender="wren",
             kind="status",
             task_id="t-1",
-            payload={"text": "@bilby your turn"},  # mentions peer → no relay
+            payload={"text": "@finch your turn"},  # mentions peer → no relay
         ),
     )
-    clock.advance(5.0)  # bilby is 50s silent (past window); skippy only 5s since reset
+    clock.advance(5.0)  # finch is 50s silent (past window); wren only 5s since reset
     await hub.poll_offline_once()
     woke = {s for s, _ in bus.published if ".wake." in s}
-    assert subjects.agent_wake("dev", "bilby", channel="dash-dev") in woke, (
-        "the silent worker (bilby) must be woken"
+    assert subjects.agent_wake("dev", "finch", channel="dash-dev") in woke, (
+        "the silent worker (finch) must be woken"
     )
-    assert subjects.agent_wake("dev", "skippy", channel="dash-dev") not in woke, (
-        "skippy answered — must NOT be woken"
+    assert subjects.agent_wake("dev", "wren", channel="dash-dev") not in woke, (
+        "wren answered — must NOT be woken"
     )
     await hub.aclose()
 
@@ -704,9 +702,9 @@ async def test_offline_watches_each_worker_independently() -> None:
 async def test_dry_run_publishes_no_narration_beat() -> None:
     hub, bus, _kboard, _clock = _hub(dry_run=True)
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     # In dry-run no narrator is wired, so nothing lands on the manager's inbox.
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    inbox = subjects.agent_inbox("dev", "heron")
     assert not any(s == inbox for s, _ in bus.published)
     await hub.aclose()
 
@@ -714,8 +712,8 @@ async def test_dry_run_publishes_no_narration_beat() -> None:
 async def test_narration_beat_lands_on_manager_inbox_when_wired() -> None:
     hub, bus, _kboard, _clock = _hub(dry_run=False)
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
+    inbox = subjects.agent_inbox("dev", "heron")
     beats = [env for s, env in bus.published if s == inbox]
     assert beats, "a dispatched beat should land on the manager's inbox"
     # Narration carries no task prose — only the templated beat text.
@@ -737,7 +735,7 @@ async def test_kboard_failure_on_start_does_not_crash_the_hub() -> None:
 
     hub._kboard = RaisingKboard()  # type: ignore[assignment]  # noqa: SLF001 - fault injection
     await hub.start()
-    session = await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    session = await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     # The task still coordinated: dispatch fanned out despite the durable-write fail.
     assert session.state is State.WORKING
     assert any(".dispatch." in s for s, _ in bus.published)
@@ -764,8 +762,8 @@ async def test_terminal_persist_failure_keeps_task_tracked_for_retry() -> None:
 
     hub._kboard = FlakyKboard()  # type: ignore[assignment]  # noqa: SLF001 - fault injection
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy",)))
-    done = done_envelope(msg_id="dn1", ts="t", sender="skippy", task_id="t-1", outcome="completed")
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren",)))
+    done = done_envelope(msg_id="dn1", ts="t", sender="wren", task_id="t-1", outcome="completed")
     await bus.deliver(subjects.agent_status("dev", "t-1"), done)
     # First done write failed → task STILL tracked (retry window kept open).
     assert hub.is_tracking("t-1")
@@ -908,7 +906,7 @@ async def test_oversized_fanout_does_not_report_blocked_when_board_returns_done(
     )
     try:
         result = await hub.start_task(
-            IntakeTask(task_id="t-done", channel="dash-dev", workers=("bilby",), text="too big")
+            IntakeTask(task_id="t-done", channel="dash-dev", workers=("finch",), text="too big")
         )
     finally:
         logger.remove(sink_id)
@@ -955,7 +953,7 @@ async def test_dispatch_publishes_the_prechecked_envelopes_verbatim() -> None:
     await hub.start()
     await _drive_intake_once(hub, bus)
 
-    # Fan-out went to BOTH default workers (skippy, bilby).
+    # Fan-out went to BOTH default workers (wren, finch).
     dispatched = [(s, e) for s, e in bus.published if ".dispatch." in s]
     assert len(dispatched) == 2, dispatched
     # Every dispatch subject that was published was also size-checked, and the
@@ -972,10 +970,10 @@ async def test_done_for_foreign_task_id_is_dropped() -> None:
     # this task (parse_done only checks a task_id exists, not that it matches).
     hub, bus, kboard, _clock = _hub()
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy",)))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren",)))
     await bus.deliver(
         subjects.agent_status("dev", "t-1"),
-        done_envelope(msg_id="dn1", ts="t", sender="skippy", task_id="OTHER", outcome="completed"),
+        done_envelope(msg_id="dn1", ts="t", sender="wren", task_id="OTHER", outcome="completed"),
     )
     # The task is still tracked; no DONE was persisted for it.
     assert hub.is_tracking("t-1")
@@ -989,12 +987,12 @@ async def test_synthesize_decision_dispatches_to_manager_inbox() -> None:
     # Runs in dry_run: synthesis is a coordination dispatch, not a narration beat.
     hub, bus, _kboard, _clock = _hub(dry_run=True, circlejerk_n=2)
     await hub.start()
-    await hub.start_task(IntakeTask("t-1", "dash-dev", ("skippy", "bilby")))
+    await hub.start_task(IntakeTask("t-1", "dash-dev", ("wren", "finch")))
     status = subjects.agent_status("dev", "t-1")
     assert len(bus.handlers[status]) == 1
     # Two consecutive agree turns (no dissent, no fact-pull) trip the circlejerk;
     # with no evidenced position the decider returns SYNTHESIZE.
-    for i, sender in enumerate(("skippy", "bilby")):
+    for i, sender in enumerate(("wren", "finch")):
         await bus.deliver(
             status,
             Envelope.new(
@@ -1008,9 +1006,9 @@ async def test_synthesize_decision_dispatches_to_manager_inbox() -> None:
         )
         if i == 0:
             assert not any(
-                subject == subjects.agent_inbox("dev", "nagatha") for subject, _env in bus.published
+                subject == subjects.agent_inbox("dev", "heron") for subject, _env in bus.published
             ), "one delivery must count as one score observation, below the threshold"
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    inbox = subjects.agent_inbox("dev", "heron")
     synth = [env for s, env in bus.published if s == inbox]
     assert len(synth) == 1, "two deliveries must trigger exactly one synthesis"
     await hub.aclose()
@@ -1022,21 +1020,21 @@ async def test_synthesize_decision_dispatches_to_manager_inbox() -> None:
 async def test_arbitration_responder_answers_a_request_end_to_end() -> None:
     # A worker publishes an arbitrate request on the topic subject and blocks on a
     # reply; the wired responder must decide deterministically and reply on the
-    # request's reply subject with the chosen worker (sorted-first = bilby).
+    # request's reply subject with the chosen worker (sorted-first = finch).
     hub, bus, _kboard, _clock = _hub(arbitrate_topics=("who-first",))
     await hub.start()
     subject = subjects.agent_arbitrate("dev", "who-first")
     request = Envelope.new(
-        msg_id="req1", ts="t", sender="skippy", kind="arbitrate", topic="who-first"
+        msg_id="req1", ts="t", sender="wren", kind="arbitrate", topic="who-first"
     )
     await bus.deliver_raw(subject, FakeMsg(subject, request.to_bytes(), reply="_INBOX.reply1"))
     # One reply landed on the asker's reply subject, correlated to the request,
-    # carrying the deterministic decision (sorted-first of skippy,bilby = bilby).
+    # carrying the deterministic decision (sorted-first of wren,finch = finch).
     replies = [env for reply_subj, env in bus.replies if reply_subj == "_INBOX.reply1"]
     assert replies, "the responder should have replied on the request's reply subject"
     reply = replies[0]
     assert reply.correlation_id == "req1"
-    assert reply.payload["decision"] == "bilby"
+    assert reply.payload["decision"] == "finch"
     await hub.aclose()
 
 
@@ -1048,7 +1046,7 @@ async def test_arbitration_disabled_wires_no_responder() -> None:
     subject = subjects.agent_arbitrate("dev", "who-first")
     assert subject not in bus.raw_handlers, "no arbitration responder should be subscribed"
     request = Envelope.new(
-        msg_id="req1", ts="t", sender="skippy", kind="arbitrate", topic="who-first"
+        msg_id="req1", ts="t", sender="wren", kind="arbitrate", topic="who-first"
     )
     await bus.deliver_raw(subject, FakeMsg(subject, request.to_bytes(), reply="_INBOX.reply1"))
     assert not bus.replies, "a disabled responder must not reply"
@@ -1088,7 +1086,7 @@ async def test_show_work_responder_reconstructs_redacted_trail(
             {
                 "task_id": "task-64",
                 "kind": "status",
-                "sender": "skippy",
+                "sender": "wren",
                 "text_preview": "token sk-ant-abcdefghij0123456789",
             }
         ),
@@ -1099,7 +1097,7 @@ async def test_show_work_responder_reconstructs_redacted_trail(
     await hub.start()
     subject = subjects.hub_show_work("dev")
     request = Envelope.new(
-        msg_id="show-1", ts="t", sender="skippy", kind="show_work", payload={"task_id": "task-64"}
+        msg_id="show-1", ts="t", sender="wren", kind="show_work", payload={"task_id": "task-64"}
     )
     await bus.deliver_raw(subject, FakeMsg(subject, request.to_bytes(), reply="_INBOX.show"))
     reply = next(reply for destination, reply in bus.replies if destination == "_INBOX.show")
@@ -1113,20 +1111,20 @@ async def test_show_work_responder_rejects_malformed_and_missing_task() -> None:
     hub, bus, _kboard, _clock = _hub()
     await hub.start()
     subject = subjects.hub_show_work("dev")
-    malformed = Envelope.new(msg_id="bad", ts="t", sender="skippy", kind="show_work", payload={})
+    malformed = Envelope.new(msg_id="bad", ts="t", sender="wren", kind="show_work", payload={})
     await bus.deliver_raw(subject, FakeMsg(subject, malformed.to_bytes(), reply="_INBOX.bad"))
     assert bus.replies[-1][1].payload == {"error": "show_work: invalid request"}
     oversized = Envelope.new(
         msg_id="large",
         ts="t",
-        sender="skippy",
+        sender="wren",
         kind="show_work",
         payload={"task_id": "x" * 257},
     )
     await bus.deliver_raw(subject, FakeMsg(subject, oversized.to_bytes(), reply="_INBOX.large"))
     assert bus.replies[-1][1].payload == {"error": "show_work: invalid request"}
     missing = Envelope.new(
-        msg_id="missing", ts="t", sender="skippy", kind="show_work", payload={"task_id": "missing"}
+        msg_id="missing", ts="t", sender="wren", kind="show_work", payload={"task_id": "missing"}
     )
     await bus.deliver_raw(subject, FakeMsg(subject, missing.to_bytes(), reply="_INBOX.missing"))
     assert bus.replies[-1][1].payload == {"error": "show_work: response unavailable"}
@@ -1145,7 +1143,7 @@ async def test_show_work_responder_preserves_bounded_truncation(
                 {
                     "task_id": "task-64",
                     "kind": "status",
-                    "sender": "skippy",
+                    "sender": "wren",
                     "text_preview": "token sk-ant-abcdefghij0123456789 " + "x" * 80,
                 }
             )
@@ -1161,7 +1159,7 @@ async def test_show_work_responder_preserves_bounded_truncation(
     request = Envelope.new(
         msg_id="truncated",
         ts="t",
-        sender="skippy",
+        sender="wren",
         kind="show_work",
         payload={"task_id": "task-64"},
     )
@@ -1212,7 +1210,7 @@ async def test_show_work_rejects_missing_reply_before_journal_retrieval(
     hub, bus, _kboard, _clock = _hub()
     await hub.start()
     request = Envelope.new(
-        msg_id="no-reply", ts="t", sender="skippy", kind="show_work", payload={"task_id": "task-64"}
+        msg_id="no-reply", ts="t", sender="wren", kind="show_work", payload={"task_id": "task-64"}
     )
     await bus.deliver_raw(
         subjects.hub_show_work("dev"), FakeMsg("show", request.to_bytes(), reply="")
@@ -1240,7 +1238,7 @@ async def test_show_work_keeps_hub_loop_responsive_and_rejects_parallel_retrieva
     await hub.start()
     subject = subjects.hub_show_work("dev")
     first = Envelope.new(
-        msg_id="first", ts="t", sender="skippy", kind="show_work", payload={"task_id": "task-1"}
+        msg_id="first", ts="t", sender="wren", kind="show_work", payload={"task_id": "task-1"}
     )
     first_delivery = asyncio.create_task(
         bus.deliver_raw(subject, FakeMsg(subject, first.to_bytes(), reply="_INBOX.first"))
@@ -1248,7 +1246,7 @@ async def test_show_work_keeps_hub_loop_responsive_and_rejects_parallel_retrieva
     assert await asyncio.to_thread(entered.wait, 1)
 
     second = Envelope.new(
-        msg_id="second", ts="t", sender="bilby", kind="show_work", payload={"task_id": "task-2"}
+        msg_id="second", ts="t", sender="finch", kind="show_work", payload={"task_id": "task-2"}
     )
     await bus.deliver_raw(subject, FakeMsg(subject, second.to_bytes(), reply="_INBOX.second"))
     assert bus.replies[-1][1].payload == {"error": "show_work: busy"}
@@ -1337,7 +1335,7 @@ async def test_show_work_refuses_symlinked_journal_and_artifact_paths(
     hub, bus, _kboard, _clock = _hub()
     await hub.start()
     request = Envelope.new(
-        msg_id="hostile", ts="t", sender="skippy", kind="show_work", payload={"task_id": "task-64"}
+        msg_id="hostile", ts="t", sender="wren", kind="show_work", payload={"task_id": "task-64"}
     )
     await bus.deliver_raw(
         subjects.hub_show_work("dev"), FakeMsg("show", request.to_bytes(), reply="_INBOX.hostile")
@@ -1368,16 +1366,16 @@ def test_config_from_env_defaults_agent_id_to_manager(monkeypatch: Any) -> None:
     # FLEET_AGENT_ID unset must NOT leave the hub's bus identity as "unknown"
     # (which would stamp live envelopes) — it defaults to the manager id.
     monkeypatch.delenv("FLEET_AGENT_ID", raising=False)
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     config = HubConfig.from_env()
-    assert config.bus.agent_id == "nagatha"
+    assert config.bus.agent_id == "heron"
 
 
 def test_config_from_env_rejects_worker_with_separator(monkeypatch: Any) -> None:
     # A worker id containing the offline-key separator must fail loud at config.
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bi::lby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,bi::lby")
     import pytest
 
     with pytest.raises(ValueError, match="must not contain"):
@@ -1386,7 +1384,7 @@ def test_config_from_env_rejects_worker_with_separator(monkeypatch: Any) -> None
 
 def test_config_from_env_requires_manager(monkeypatch: Any) -> None:
     monkeypatch.delenv("FLEET_MANAGER_ID", raising=False)
-    monkeypatch.setenv("FLEET_WORKERS", "skippy")
+    monkeypatch.setenv("FLEET_WORKERS", "wren")
     import pytest
 
     with pytest.raises(ValueError, match="FLEET_MANAGER_ID"):
@@ -1394,7 +1392,7 @@ def test_config_from_env_requires_manager(monkeypatch: Any) -> None:
 
 
 def test_config_from_env_requires_workers(monkeypatch: Any) -> None:
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
     monkeypatch.delenv("FLEET_WORKERS", raising=False)
     import pytest
 
@@ -1404,8 +1402,8 @@ def test_config_from_env_requires_workers(monkeypatch: Any) -> None:
 
 def test_config_from_env_arbitration_defaults_on_no_topics(monkeypatch: Any) -> None:
     # Arbitration defaults ON but with no topics configured (opt-in per topic).
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.delenv("FLEET_ARBITRATION_ENABLED", raising=False)
     monkeypatch.delenv("FLEET_ARBITRATE_TOPICS", raising=False)
     config = HubConfig.from_env()
@@ -1414,16 +1412,16 @@ def test_config_from_env_arbitration_defaults_on_no_topics(monkeypatch: Any) -> 
 
 
 def test_config_from_env_parses_arbitrate_topics(monkeypatch: Any) -> None:
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.setenv("FLEET_ARBITRATE_TOPICS", " who-first , ownership ")
     config = HubConfig.from_env()
     assert config.arbitrate_topics == ("who-first", "ownership")
 
 
 def test_config_from_env_arbitration_disabled_by_flag(monkeypatch: Any) -> None:
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.setenv("FLEET_ARBITRATION_ENABLED", "false")
     config = HubConfig.from_env()
     assert config.arbitration_enabled is False
@@ -1431,8 +1429,8 @@ def test_config_from_env_arbitration_disabled_by_flag(monkeypatch: Any) -> None:
 
 def test_config_from_env_rejects_bad_arbitration_bool(monkeypatch: Any) -> None:
     # A typo'd bool must fail loud, not silently default arbitration on.
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.setenv("FLEET_ARBITRATION_ENABLED", "flase")
     import pytest
 
@@ -1444,8 +1442,8 @@ def test_config_from_env_enabled_poller_requires_label(monkeypatch: Any) -> None
     # fleet-bus #54, fail closed: an enabled poller with no card-scope marker would
     # open every card on the board (the fleet-hub first-enable grabbed 8 unrelated
     # cards). Refuse to start rather than run unscoped.
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.setenv("FLEET_INTAKE_POLL_ENABLED", "true")
     monkeypatch.delenv("FLEET_INTAKE_LABEL", raising=False)
     import pytest
@@ -1455,8 +1453,8 @@ def test_config_from_env_enabled_poller_requires_label(monkeypatch: Any) -> None
 
 
 def test_config_from_env_enabled_poller_with_label_starts(monkeypatch: Any) -> None:
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.setenv("FLEET_INTAKE_POLL_ENABLED", "true")
     monkeypatch.setenv("FLEET_INTAKE_LABEL", "[fleet]")
     config = HubConfig.from_env()
@@ -1466,8 +1464,8 @@ def test_config_from_env_enabled_poller_with_label_starts(monkeypatch: Any) -> N
 
 def test_config_from_env_disabled_poller_needs_no_label(monkeypatch: Any) -> None:
     # A disabled poller opens nothing, so no marker is required.
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.setenv("FLEET_INTAKE_POLL_ENABLED", "false")
     monkeypatch.delenv("FLEET_INTAKE_LABEL", raising=False)
     config = HubConfig.from_env()
@@ -1533,7 +1531,7 @@ async def test_control_resume_unblocks_a_paused_task_and_wake_proceeds() -> None
     # (a) PAUSED → the offline tick performs NO bus behavior for the worker.
     hub_a, bus_a, _kb_a, clock_a = _hub(dispatch_timeout_s=10.0, offline_poll_s=3600.0)
     await hub_a.start()
-    await hub_a.start_task(IntakeTask("t-1", "dash-dev", ("skippy",)))
+    await hub_a.start_task(IntakeTask("t-1", "dash-dev", ("wren",)))
     hub_a._governor.pause("t-1")  # noqa: SLF001 - stand in for a live over-budget pause
     baseline = len(bus_a.published)
     clock_a.advance(50.0)
@@ -1544,14 +1542,14 @@ async def test_control_resume_unblocks_a_paused_task_and_wake_proceeds() -> None
     # (b) PAUSED then RESUMED via a control frame → the same offline tick wakes.
     hub_b, bus_b, _kb_b, clock_b = _hub(dispatch_timeout_s=10.0, offline_poll_s=3600.0)
     await hub_b.start()
-    await hub_b.start_task(IntakeTask("t-1", "dash-dev", ("skippy",)))
+    await hub_b.start_task(IntakeTask("t-1", "dash-dev", ("wren",)))
     hub_b._governor.pause("t-1")  # noqa: SLF001
     await bus_b.deliver(subjects.hub_control_wildcard("dev"), _control("t-1"))
     assert hub_b._governor.is_paused("t-1") is False  # noqa: SLF001  # resume reached the governor
     after_resume = len(bus_b.published)
     clock_b.advance(50.0)
     await hub_b.poll_offline_once()
-    wake = subjects.agent_wake("dev", "skippy", channel="dash-dev")
+    wake = subjects.agent_wake("dev", "wren", channel="dash-dev")
     assert wake in {s for s, _ in bus_b.published[after_resume:]}, (
         "resume must let the gated wake proceed"
     )
@@ -1636,7 +1634,7 @@ def _liveness_hub(
     # the sweep), so build the kwargs then let overrides replace any key.
     kwargs: dict[str, Any] = dict(
         fleet_liveness_enabled=True,
-        fleet_expected=("bilby",),
+        fleet_expected=("finch",),
         fleet_liveness_consecutive=2,
         fleet_liveness_sweep_s=3600.0,  # never auto-tick; drive poll manually
         heartbeat_interval_s=10.0,
@@ -1665,8 +1663,8 @@ async def test_fleet_liveness_sweep_not_started_when_disabled() -> None:
 async def test_fleet_liveness_below_threshold_is_silent() -> None:
     hub, bus, _kboard, clock = _liveness_hub()
     await hub.start()
-    await _feed_beat(bus, "bilby")  # last_seen = 0.0
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    await _feed_beat(bus, "finch")  # last_seen = 0.0
+    inbox = subjects.agent_inbox("dev", "heron")
     baseline = len(bus.published)
     clock.advance(40.0)  # stale (past 30s window)
     await hub.poll_fleet_liveness_once()  # 1 silent sweep — below threshold of 2
@@ -1679,8 +1677,8 @@ async def test_fleet_liveness_fires_one_missing_beat_after_n_stale() -> None:
     # envelope, else the manager's subscriber drops it channel-less (fleet-bus #72).
     hub, bus, _kboard, clock = _liveness_hub(intake_channel="dash-fleet")
     await hub.start()
-    await _feed_beat(bus, "bilby")
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    await _feed_beat(bus, "finch")
+    inbox = subjects.agent_inbox("dev", "heron")
     clock.advance(40.0)
     await hub.poll_fleet_liveness_once()  # 1 silent
     await hub.poll_fleet_liveness_once()  # 2 silent -> exactly one missing beat
@@ -1690,7 +1688,7 @@ async def test_fleet_liveness_fires_one_missing_beat_after_n_stale() -> None:
         if s == inbox and "missing from the bus" in env.payload.get("text", "")
     ]
     assert len(missing) == 1, "one missing beat on the manager inbox"
-    assert "bilby" in missing[0].payload["text"]
+    assert "finch" in missing[0].payload["text"]
     assert missing[0].task_id == "fleet"
     # The beat carries the hub's fleet channel so envelope_to_message can resolve a
     # chat_id — a channel-less beat is silently dropped by the subscriber (#72).
@@ -1709,13 +1707,13 @@ async def test_fleet_liveness_fires_one_missing_beat_after_n_stale() -> None:
 async def test_fleet_liveness_narrates_recovery_after_missing() -> None:
     hub, bus, _kboard, clock = _liveness_hub()
     await hub.start()
-    await _feed_beat(bus, "bilby")
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    await _feed_beat(bus, "finch")
+    inbox = subjects.agent_inbox("dev", "heron")
     clock.advance(40.0)
     await hub.poll_fleet_liveness_once()  # 1 silent
     await hub.poll_fleet_liveness_once()  # 2 silent -> missing
-    # bilby beats again — the tracker re-sees it at the current clock.
-    await _feed_beat(bus, "bilby", seq=2)
+    # finch beats again — the tracker re-sees it at the current clock.
+    await _feed_beat(bus, "finch", seq=2)
     await hub.poll_fleet_liveness_once()  # fresh -> exactly one recovered
     recovered = [
         env
@@ -1723,15 +1721,15 @@ async def test_fleet_liveness_narrates_recovery_after_missing() -> None:
         if s == inbox and "back on the bus" in env.payload.get("text", "")
     ]
     assert len(recovered) == 1
-    assert "bilby" in recovered[0].payload["text"]
+    assert "finch" in recovered[0].payload["text"]
     await hub.aclose()
 
 
 async def test_fleet_liveness_dry_run_sweeps_but_narrates_nothing() -> None:
     hub, bus, _kboard, clock = _liveness_hub(dry_run=True)
     await hub.start()
-    await _feed_beat(bus, "bilby")
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    await _feed_beat(bus, "finch")
+    inbox = subjects.agent_inbox("dev", "heron")
     clock.advance(40.0)
     await hub.poll_fleet_liveness_once()
     await hub.poll_fleet_liveness_once()  # would fire missing, but no narrator
@@ -1758,15 +1756,15 @@ async def test_fleet_liveness_narrate_failure_does_not_kill_the_sweep() -> None:
     # poll_fleet_liveness_once, (b) let one bad beat skip a peer transition in the
     # same tick, or (c) stop later ticks from firing (recovery still attempted).
     hub, bus, _kboard, clock = _liveness_hub(
-        fleet_expected=("bilby", "skippy"),  # two agents → two transitions per tick
+        fleet_expected=("finch", "wren"),  # two agents → two transitions per tick
         fleet_liveness_consecutive=2,
     )
     await hub.start()
     boom = _RaisingNarrator()
     hub._narrator = boom  # type: ignore[assignment]  # noqa: SLF001 - inject the raising throat
 
-    await _feed_beat(bus, "bilby")
-    await _feed_beat(bus, "skippy")
+    await _feed_beat(bus, "finch")
+    await _feed_beat(bus, "wren")
     clock.advance(40.0)  # both agents now stale (past the 30s window)
 
     await hub.poll_fleet_liveness_once()  # 1 silent — no transition, no narrate
@@ -1775,14 +1773,14 @@ async def test_fleet_liveness_narrate_failure_does_not_kill_the_sweep() -> None:
     # narrate raises; the guard must swallow it AND still attempt the second.
     await hub.poll_fleet_liveness_once()  # must NOT raise
     missing_targets = {t for b, t in boom.calls if b == "fleet_silent"}
-    assert missing_targets == {"bilby", "skippy"}, "a bad beat must not skip its peer"
+    assert missing_targets == {"finch", "wren"}, "a bad beat must not skip its peer"
 
-    # A later tick still fires: bilby recovers → a recovery beat is attempted even
+    # A later tick still fires: finch recovers → a recovery beat is attempted even
     # though every prior narrate raised (the loop is not wedged by past failures).
     before = len(boom.calls)
-    await _feed_beat(bus, "bilby", seq=2)
+    await _feed_beat(bus, "finch", seq=2)
     await hub.poll_fleet_liveness_once()  # must NOT raise
-    assert ("fleet_present", "bilby") in boom.calls[before:], (
+    assert ("fleet_present", "finch") in boom.calls[before:], (
         "recovery still attempted after failures"
     )
 
@@ -1801,7 +1799,7 @@ async def test_fleet_liveness_background_task_survives_a_narrate_failure_tick() 
     await hub.start()
     boom = _RaisingNarrator()
     hub._narrator = boom  # type: ignore[assignment]  # noqa: SLF001
-    await _feed_beat(bus, "bilby")
+    await _feed_beat(bus, "finch")
     clock.advance(40.0)  # stale
 
     # Let the background loop tick several times through the failing narrator.
@@ -1824,7 +1822,7 @@ async def test_fleet_liveness_never_seen_agent_narrated_through_the_loop() -> No
     # reporter — no heartbeat is ever fed for "ghost".
     hub, bus, _kboard, _clock = _liveness_hub(fleet_expected=("ghost",))
     await hub.start()
-    inbox = subjects.agent_inbox("dev", "nagatha")
+    inbox = subjects.agent_inbox("dev", "heron")
     await hub.poll_fleet_liveness_once()  # 1 silent (never seen)
     await hub.poll_fleet_liveness_once()  # 2 silent → missing
     missing = [
@@ -1843,8 +1841,8 @@ async def test_fleet_liveness_never_seen_agent_narrated_through_the_loop() -> No
 def test_config_from_env_enabled_sweep_requires_roster(monkeypatch: Any) -> None:
     import pytest
 
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.setenv("FLEET_LIVENESS_ENABLED", "true")
     monkeypatch.delenv("FLEET_EXPECTED_AGENTS", raising=False)
     with pytest.raises(ValueError, match="FLEET_EXPECTED_AGENTS is required"):
@@ -1852,18 +1850,18 @@ def test_config_from_env_enabled_sweep_requires_roster(monkeypatch: Any) -> None
 
 
 def test_config_from_env_enabled_sweep_with_roster_starts(monkeypatch: Any) -> None:
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.setenv("FLEET_LIVENESS_ENABLED", "true")
-    monkeypatch.setenv("FLEET_EXPECTED_AGENTS", "skippy,bilby,nagatha")
+    monkeypatch.setenv("FLEET_EXPECTED_AGENTS", "wren,finch,heron")
     config = HubConfig.from_env()
     assert config.fleet_liveness_enabled is True
-    assert config.fleet_expected == ("skippy", "bilby", "nagatha")
+    assert config.fleet_expected == ("wren", "finch", "heron")
 
 
 def test_config_from_env_disabled_sweep_needs_no_roster(monkeypatch: Any) -> None:
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.delenv("FLEET_LIVENESS_ENABLED", raising=False)
     monkeypatch.delenv("FLEET_EXPECTED_AGENTS", raising=False)
     config = HubConfig.from_env()
@@ -1945,8 +1943,8 @@ async def test_build_hub_starts_when_floor_disabled(monkeypatch: Any) -> None:
 
 
 def test_config_from_env_kill_authority_poll_defaults(monkeypatch: Any) -> None:
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
     monkeypatch.delenv("FLEET_KILL_SWITCH_POLL_SECONDS", raising=False)
     config = HubConfig.from_env()
     assert config.kill_switch_poll_s == 1.0

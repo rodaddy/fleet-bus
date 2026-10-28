@@ -86,11 +86,11 @@ _DEFAULT_POLL_S = 15.0
 _CANARY_TASK_TEXT = (
     "Canary: nightly liveness check (report-only). Each worker: reply with ONE "
     "final message that is a JSON object (a typed turn), for example: "
-    '{"visible_text": "@bilby skippy on <host>, gateway up", "stance": '
+    '{"visible_text": "@finch wren on <host>, gateway up", "stance": '
     '"agree", "done": true, "outcome": "success"}. Put your one line — your '
     "agent id, your host, and whether your Hermes gateway is up — in "
-    "visible_text, and mention your peer there with an @ sigil (Skippy writes "
-    "@bilby, Bilby writes @skippy). Nagatha: one synthesis turn with "
+    "visible_text, and mention your peer there with an @ sigil (Wren writes "
+    "@finch, Finch writes @wren). Heron: one synthesis turn with "
     '{"visible_text": "<synthesis>", "done": true, "outcome": "success"}. '
     "REPORT ONLY — change nothing."
 )
@@ -289,7 +289,7 @@ async def _amain(args: argparse.Namespace) -> int:
 
     manager = os.environ.get(_ENV_MANAGER, "").strip()
     if not manager:
-        raise ValueError(f"{_ENV_MANAGER} is required (the manager agent id, e.g. 'nagatha')")
+        raise ValueError(f"{_ENV_MANAGER} is required (the manager agent id, e.g. 'heron')")
     intake_label = intake_label_from_env()
     if not intake_label:
         raise ValueError(

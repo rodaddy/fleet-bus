@@ -24,7 +24,7 @@ _SECRET = "s3cr3t-pw"  # noqa: S105 — test fixture password, not a real creden
 
 
 def test_defaults_valid() -> None:
-    cfg = BusConfig(agent_id="nagatha")
+    cfg = BusConfig(agent_id="heron")
     assert cfg.url == _DEFAULT_URL
     assert cfg.env == _DEFAULT_ENV == "dev"
     assert cfg.credential_source is CredentialSource.NONE
@@ -241,11 +241,11 @@ def test_from_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_from_env_reads_named_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FLEET_NATS_URL", _STAGING_URL)
     monkeypatch.setenv("FLEET_ENV", "staging")
-    monkeypatch.setenv("FLEET_AGENT_ID", "bilby")
+    monkeypatch.setenv("FLEET_AGENT_ID", "finch")
     cfg = BusConfig.from_env()
     assert cfg.url == _STAGING_URL
     assert cfg.env == "staging"
-    assert cfg.agent_id == "bilby"
+    assert cfg.agent_id == "finch"
 
 
 def test_from_env_overridden_url_without_env_fails_loud(

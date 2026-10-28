@@ -274,7 +274,7 @@ async def test_clear_state_deletes_durable_snapshot_and_resets_local_state() -> 
 
     store = _FakeStore()
     ledger = CostLedger()
-    ledger.restore_task("t-1", {"tokens": 900, "seen_turns": [["bilby", "turn-a"]]})
+    ledger.restore_task("t-1", {"tokens": 900, "seen_turns": [["finch", "turn-a"]]})
     gov = Governor(_budget(), ledger=ledger, store=store)
     for _ in range(4):
         gov.note_message("t-1")
@@ -424,7 +424,7 @@ async def test_hydrate_wrong_typed_governor_numeric_snapshot_fails_closed_withou
     from fleet_orchestrator.costfeed import CostLedger
 
     ledger = CostLedger()
-    ledger.restore_task("t-1", {"tokens": 100, "seen_turns": [["bilby", "turn-a"]]})
+    ledger.restore_task("t-1", {"tokens": 100, "seen_turns": [["finch", "turn-a"]]})
     gov = Governor(_budget(), ledger=ledger, store=_SnapshotStore(snapshot))
     gov.note_message("t-1")
 
@@ -435,7 +435,7 @@ async def test_hydrate_wrong_typed_governor_numeric_snapshot_fails_closed_withou
     assert breach.kind is BreachKind.AT_RISK
     assert gov.snapshot("t-1")["msgs"] == 1
     assert ledger.task_total("t-1") == 100
-    assert ledger.task_snapshot("t-1")["seen_turns"] == [["bilby", "turn-a"]]
+    assert ledger.task_snapshot("t-1")["seen_turns"] == [["finch", "turn-a"]]
 
 
 @pytest.mark.parametrize(
@@ -445,7 +445,7 @@ async def test_hydrate_wrong_typed_governor_numeric_snapshot_fails_closed_withou
         {"tokens": True, "seen_turns": []},
         {"tokens": 1.5, "seen_turns": []},
         {"tokens": 900, "seen_turns": [[123, "turn-b"]]},
-        {"tokens": 900, "seen_turns": [["bilby", 123]]},
+        {"tokens": 900, "seen_turns": [["finch", 123]]},
         {"tokens": 900, "seen_turns": [123]},
     ],
 )
@@ -455,7 +455,7 @@ async def test_hydrate_wrong_typed_token_snapshot_fails_closed_without_partial_m
     from fleet_orchestrator.costfeed import CostLedger
 
     ledger = CostLedger()
-    ledger.restore_task("t-1", {"tokens": 100, "seen_turns": [["bilby", "turn-a"]]})
+    ledger.restore_task("t-1", {"tokens": 100, "seen_turns": [["finch", "turn-a"]]})
     gov = Governor(
         _budget(),
         ledger=ledger,
@@ -470,7 +470,7 @@ async def test_hydrate_wrong_typed_token_snapshot_fails_closed_without_partial_m
     assert breach.kind is BreachKind.AT_RISK
     assert gov.snapshot("t-1")["msgs"] == 1
     assert ledger.task_total("t-1") == 100
-    assert ledger.task_snapshot("t-1")["seen_turns"] == [["bilby", "turn-a"]]
+    assert ledger.task_snapshot("t-1")["seen_turns"] == [["finch", "turn-a"]]
 
 
 async def test_hydrate_missing_snapshot_does_not_fail_closed() -> None:
@@ -496,7 +496,7 @@ async def test_snapshot_includes_token_ledger_and_restore_resumes_spend() -> Non
     ledger = CostLedger()
     # Seed the ledger directly via its task snapshot round-trip (the observe path
     # is covered in the costfeed tests; here we assert the governor carries it).
-    seed = {"tokens": 900, "seen_turns": [["bilby", "turn-a"], ["bilby", "turn-b"]]}
+    seed = {"tokens": 900, "seen_turns": [["finch", "turn-a"], ["finch", "turn-b"]]}
     ledger.restore_task("t-1", seed)
     gov = Governor(Budget(max_msgs=3, max_tokens=1000), ledger=ledger)
     snap = gov.snapshot("t-1")

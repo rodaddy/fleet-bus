@@ -27,8 +27,8 @@ def _session(state: State = State.DISPATCHED) -> CoordinationSession:
     return CoordinationSession(
         task_id="t-1",
         channel="dash-dev",
-        manager="nagatha",
-        workers=("skippy", "bilby"),
+        manager="heron",
+        workers=("wren", "finch"),
         state=state,
     )
 
@@ -37,10 +37,10 @@ def _session(state: State = State.DISPATCHED) -> CoordinationSession:
 
 
 def test_dispatch_moves_to_working_and_emits_dispatch() -> None:
-    action = next_action(_session(State.DISPATCHED), Event(kind=EventKind.DISPATCH, actor="skippy"))
+    action = next_action(_session(State.DISPATCHED), Event(kind=EventKind.DISPATCH, actor="wren"))
     assert action.kind is ActionKind.DISPATCH
     assert action.session.state is State.WORKING
-    assert action.target == "skippy"
+    assert action.target == "wren"
 
 
 def test_worker_progress_stays_working_noop() -> None:
@@ -65,21 +65,21 @@ def test_missing_handoff_triggers_relay() -> None:
         _session(State.WORKING),
         Event(
             kind=EventKind.HANDOFF_MISSING,
-            actor="skippy",
-            relay_to="bilby",
-            context={"missed": "skippy forgot to hand off to bilby"},
+            actor="wren",
+            relay_to="finch",
+            context={"missed": "wren forgot to hand off to finch"},
         ),
     )
     assert action.kind is ActionKind.RELAY
     assert action.session.state is State.RELAY_NEEDED
-    assert action.session.relay_target == "bilby"
-    assert action.session.relay_context == {"missed": "skippy forgot to hand off to bilby"}
-    assert action.target == "bilby"
+    assert action.session.relay_target == "finch"
+    assert action.session.relay_context == {"missed": "wren forgot to hand off to finch"}
+    assert action.target == "finch"
 
 
 def test_relay_sent_returns_to_working_and_clears_target() -> None:
     src = _session(State.RELAY_NEEDED).advanced_to(
-        State.RELAY_NEEDED, relay_target="bilby", relay_context={"missed": "x"}
+        State.RELAY_NEEDED, relay_target="finch", relay_context={"missed": "x"}
     )
     action = next_action(src, Event(kind=EventKind.RELAY_SENT))
     assert action.session.state is State.WORKING
@@ -105,12 +105,12 @@ def test_relay_re_request_without_target_is_noop() -> None:
 
 def test_relay_re_requested_before_first_lands_keeps_target() -> None:
     src = _session(State.RELAY_NEEDED).advanced_to(
-        State.RELAY_NEEDED, relay_target="bilby", relay_context={"missed": "x"}
+        State.RELAY_NEEDED, relay_target="finch", relay_context={"missed": "x"}
     )
     action = next_action(src, Event(kind=EventKind.HANDOFF_MISSING))
     assert action.kind is ActionKind.RELAY
     assert action.session.state is State.RELAY_NEEDED
-    assert action.session.relay_target == "bilby"
+    assert action.session.relay_target == "finch"
     assert action.session.relay_context == {"missed": "x"}
 
 
@@ -120,7 +120,7 @@ def test_relay_re_requested_before_first_lands_keeps_target() -> None:
 def test_arbitrate_requested_moves_to_arbitrating() -> None:
     action = next_action(
         _session(State.WORKING),
-        Event(kind=EventKind.ARBITRATE_REQUESTED, actor="skippy", topic="who-goes-first"),
+        Event(kind=EventKind.ARBITRATE_REQUESTED, actor="wren", topic="who-goes-first"),
     )
     assert action.kind is ActionKind.ARBITRATE
     assert action.session.state is State.ARBITRATING
@@ -207,7 +207,7 @@ def test_relay_context_snapshot_is_detached_from_caller_dict() -> None:
     caller_dict = {"missed": "original"}
     action = next_action(
         _session(State.WORKING),
-        Event(kind=EventKind.HANDOFF_MISSING, relay_to="bilby", context=caller_dict),
+        Event(kind=EventKind.HANDOFF_MISSING, relay_to="finch", context=caller_dict),
     )
     caller_dict["missed"] = "TAMPERED"
     caller_dict["injected"] = "new key"
@@ -216,7 +216,7 @@ def test_relay_context_snapshot_is_detached_from_caller_dict() -> None:
 
 def test_event_context_is_read_only() -> None:
     # The carried map is a read-only proxy — attempting to mutate it raises.
-    event = Event(kind=EventKind.HANDOFF_MISSING, relay_to="bilby", context={"k": "v"})
+    event = Event(kind=EventKind.HANDOFF_MISSING, relay_to="finch", context={"k": "v"})
     with pytest.raises(TypeError):
         event.context["k"] = "mutated"  # type: ignore[index]
 

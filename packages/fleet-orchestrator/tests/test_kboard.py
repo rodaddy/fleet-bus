@@ -255,9 +255,9 @@ async def test_post_event_sends_type_and_actor() -> None:
         return httpx.Response(201, json={"ok": True})
 
     async with _client(httpx.MockTransport(handle)) as kb:
-        await kb.post_event("t-1", "claimed", "nagatha")
+        await kb.post_event("t-1", "claimed", "heron")
 
-    assert captured == {"event_type": "claimed", "actor": "nagatha"}
+    assert captured == {"event_type": "claimed", "actor": "heron"}
 
 
 async def test_post_event_omits_body_when_none() -> None:
@@ -270,7 +270,7 @@ async def test_post_event_omits_body_when_none() -> None:
         return httpx.Response(201, json={"ok": True})
 
     async with _client(httpx.MockTransport(handle)) as kb:
-        await kb.post_event("t-1", "status", "skippy")
+        await kb.post_event("t-1", "status", "wren")
 
     assert "body" not in captured  # optional body absent when not passed
 
@@ -383,7 +383,7 @@ async def test_writes_carry_bearer_and_claim_when_configured(
     """#206: PATCH/POST send the FLEET_KBOARD_TOKEN bearer; an unassigned card is
     claimed by FLEET_KBOARD_ACTOR on the first status write."""
     monkeypatch.setenv("FLEET_KBOARD_TOKEN", "hub-token")
-    monkeypatch.setenv("FLEET_KBOARD_ACTOR", "nagatha")
+    monkeypatch.setenv("FLEET_KBOARD_ACTOR", "heron")
     seen: dict[str, object] = {}
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -401,19 +401,19 @@ async def test_writes_carry_bearer_and_claim_when_configured(
 
     async with _client(httpx.MockTransport(handle)) as kb:
         await kb.update_status("t-1", "running")
-        await kb.post_event("t-1", "status", "nagatha")
+        await kb.post_event("t-1", "status", "heron")
 
     assert seen["auth"] == "Bearer hub-token"
     patch_body = seen["PATCH"]
     assert isinstance(patch_body, dict)
-    assert patch_body["assignee"] == "nagatha"  # claim-on-first-write
-    assert seen["POST"] == {"event_type": "status", "actor": "nagatha"}
+    assert patch_body["assignee"] == "heron"  # claim-on-first-write
+    assert seen["POST"] == {"event_type": "status", "actor": "heron"}
 
 
 async def test_write_does_not_reassign_an_owned_card(monkeypatch: pytest.MonkeyPatch) -> None:
     """A card already assigned must never get an assignee in the PATCH payload."""
     monkeypatch.setenv("FLEET_KBOARD_TOKEN", "hub-token")
-    monkeypatch.setenv("FLEET_KBOARD_ACTOR", "nagatha")
+    monkeypatch.setenv("FLEET_KBOARD_ACTOR", "heron")
     patched: dict[str, object] = {}
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -424,7 +424,7 @@ async def test_write_does_not_reassign_an_owned_card(monkeypatch: pytest.MonkeyP
                     "task_id": "t-2",
                     "status": "running",
                     "sync_version": 5,
-                    "assignee": "nagatha",
+                    "assignee": "heron",
                 },
             )
         import json as _json

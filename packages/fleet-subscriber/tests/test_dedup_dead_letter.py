@@ -56,7 +56,7 @@ def _reporter(bus: _RecordingBus | _ExplodingBus) -> DeadLetterReporter:
     ids = (f"dl{i}" for i in itertools.count())
     times = (f"2026-07-08T00:00:{i:02d}Z" for i in itertools.count())
     return DeadLetterReporter(
-        bus, env="dev", agent_id="bilby", new_id=lambda: next(ids), now=lambda: next(times)
+        bus, env="dev", agent_id="finch", new_id=lambda: next(ids), now=lambda: next(times)
     )
 
 
@@ -69,7 +69,7 @@ def _poison() -> Envelope:
 async def test_dead_letter_record_is_sanitized_and_on_the_dead_letter_lane() -> None:
     bus = _RecordingBus()
     await _reporter(bus).report(
-        reason="ValueError: unmappable", source_subject="dev.agent.dispatch.bilby", source=_poison()
+        reason="ValueError: unmappable", source_subject="dev.agent.dispatch.finch", source=_poison()
     )
     (subject, record), *_ = bus.published
     assert subject == subjects.dead_letter("dev")
@@ -83,13 +83,13 @@ async def test_dead_letter_record_is_sanitized_and_on_the_dead_letter_lane() -> 
         "source_ts",
     }
     assert record.payload["source_id"] == "p1"
-    assert record.payload["source_subject"] == "dev.agent.dispatch.bilby"
+    assert record.payload["source_subject"] == "dev.agent.dispatch.finch"
 
 
 async def test_dead_letter_publish_failure_is_swallowed() -> None:
     """The error path must never take the subscriber down — log and drop."""
     await _reporter(_ExplodingBus()).report(
-        reason="boom", source_subject="dev.agent.dispatch.bilby", source=_poison()
+        reason="boom", source_subject="dev.agent.dispatch.finch", source=_poison()
     )  # would raise if the reporter propagated
 
 
@@ -97,9 +97,9 @@ def test_dead_letter_envelope_round_trips() -> None:
     record = dead_letter_envelope(
         msg_id="dl1",
         ts="t",
-        sender="bilby",
+        sender="finch",
         reason="KeyError: chat",
-        source_subject="dev.agent.relay.bilby",
+        source_subject="dev.agent.relay.finch",
         source_id="s1",
         source_kind="relay",
         source_ts="t0",

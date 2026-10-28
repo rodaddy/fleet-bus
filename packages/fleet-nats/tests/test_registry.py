@@ -70,7 +70,7 @@ def test_registry_code_catalog_templates_match_the_builders() -> None:
     """The catalog is the documentation-of-record twin of subjects.py — every
     template, rendered with slugged tokens, must equal its builder's output."""
     cat = code_catalog().subjects
-    agent, worker, task, topic, chan = "Skippy Bot", "bilby", "t 1", "deploy", "dash-dev"
+    agent, worker, task, topic, chan = "Wren Bot", "finch", "t 1", "deploy", "dash-dev"
     job = "Job 42"
     expected = {
         "agent.ack": (agent_ack("dev", task), {"task_id": slug(task)}),

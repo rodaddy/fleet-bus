@@ -16,13 +16,13 @@ publishers and the hub consumer are unaffected (#65 review). Making the audit
 record ride the frame is the point: WHO + WHY must be hub-inspectable, not only
 in the publishing tool's local log.
 
-Both the *publisher* (a harness / a Nagatha-side steer tool) and the *consumer*
+Both the *publisher* (a harness / a Heron-side steer tool) and the *consumer*
 (the hub) must agree on this shape exactly — so it lives here, in the shared
 transport layer both import, with a single builder and a single parser. Neither
 side hand-rolls the dict; that is how the shape silently drifts (same discipline
 as :mod:`fleet_nats.sentinel`).
 
-The budget bump is ADD-semantics on purpose (Nagatha ratified, #59): a frame
+The budget bump is ADD-semantics on purpose (Heron ratified, #59): a frame
 raises THIS task's cap by exactly N — never a global/unbounded set — so a steer's
 grant is bounded and per-task by construction.
 
@@ -225,7 +225,7 @@ async def publish_control(
 ) -> Envelope:
     """Build and publish a control frame on the hub's control lane (#59).
 
-    The one call a harness or a Nagatha-side steer tool makes to unpause a lane:
+    The one call a harness or a Heron-side steer tool makes to unpause a lane:
     it builds the frame via :func:`control_envelope` and publishes it on
     ``subjects.hub_control(env, task_id)`` — the lane the hub watches. Mirrors
     :func:`~fleet_nats.sentinel.done_envelope`'s caller-supplies-id/ts contract so

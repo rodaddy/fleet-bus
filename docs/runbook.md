@@ -5,13 +5,13 @@
 > redacted bounded trail; applying the updated NATS authorization/deploy config
 > to a live hub remains a separate, explicitly authorized operation.
 
-How to enable the fleet-bus NATS subscriber on each trio agent — **Nagatha**
-(manager), **Skippy** and **Bilby** (workers) — with the right identity, role,
+How to enable the fleet-bus NATS subscriber on each trio agent — **Heron**
+(manager), **Wren** and **Finch** (workers) — with the right identity, role,
 and subjects, **without regressing safety**. Verification is by **effective
 state** (probe the running agent), never by trusting a config file.
 
 > **Live-deploy authorization.** Enabling the subscriber changes config on shared
-> agent hosts (bilby-host / skippy-host / nagatha-host) and restarts the gateway. That is a
+> agent hosts (finch-host / wren-host / heron-host) and restarts the gateway. That is a
 > maintainer-gated action: it goes through the front door
 > (`restore-customizations --agent <name> --apply`), with a **backup + ledger
 > entry before any live change**, and never raw `ssh` config edits.
@@ -25,9 +25,9 @@ state** (probe the running agent), never by trusting a config file.
 
 | Agent   | Host  | Role    | Subscribed lanes (effective)                    |
 |---------|-------|---------|-------------------------------------------------|
-| Bilby   | bilby-host | worker  | `dispatch` / `relay` / `wake` / `inbox`         |
-| Skippy  | skippy-host | worker  | `dispatch` / `relay` / `wake` / `inbox`         |
-| Nagatha | nagatha-host | manager | `inbox` (adapter); status/arbitrate via the orchestrator |
+| Finch   | finch-host | worker  | `dispatch` / `relay` / `wake` / `inbox`         |
+| Wren  | wren-host | worker  | `dispatch` / `relay` / `wake` / `inbox`         |
+| Heron | heron-host | manager | `inbox` (adapter); status/arbitrate via the orchestrator |
 
 All three are on Python 3.13 with `nats-py>=2.15` already (fleet standard) — **no venv work needed** to enable the subscriber.
 
@@ -36,10 +36,10 @@ All three are on Python 3.13 with `nats-py>=2.15` already (fleet standard) — *
 The subscriber reads its identity and role entirely from the environment
 (`fleet_nats.config.BusConfig.from_env` + `fleet_subscriber.role.SubscriberRole`):
 
-| Env var          | Meaning                                  | Bilby         | Skippy        | Nagatha       |
+| Env var          | Meaning                                  | Finch         | Wren        | Heron       |
 |------------------|------------------------------------------|---------------|---------------|---------------|
 | `FLEET_NATS_URL` | NATS server                              | `nats://192.0.2.74:4222` | (same) | (same) |
-| `FLEET_AGENT_ID` | this agent's identity                    | `bilby`       | `skippy`      | `nagatha`     |
+| `FLEET_AGENT_ID` | this agent's identity                    | `finch`       | `wren`      | `heron`     |
 | `FLEET_ENV`      | subject env prefix (`dev`/`prod`)        | `dev`         | `dev`         | `dev`         |
 | `FLEET_ROLE`     | `worker` \| `manager` (unset ⇒ `worker`) | `worker`      | `worker`      | `manager`     |
 | `FLEET_SUBJECT_CATALOG_MIN_VERSION` | subject-catalog floor; **refuses to start below it** (`0`/unset ⇒ enforcement OFF, fail-open) — see [Catalog-version enforcement](#catalog-version-enforcement-floor--refuse-to-start-103) | `0` | `0` | `0` |
@@ -62,18 +62,18 @@ it (a false FAIL). Leave it unset on all three agents.
 owned by the orchestrator, not the adapter). An unknown `FLEET_ROLE` **fails
 loud** — it never silently falls back. `FLEET_ROLE` unset defaults to `worker`
 (least-capable): a missed var can never silently promote a worker to coordinator.
-The symmetric risk — Nagatha coming up as a `worker` if her `FLEET_ROLE=manager`
+The symmetric risk — Heron coming up as a `worker` if her `FLEET_ROLE=manager`
 is missed — fails *safe* (no privilege gain) but *silent* (wrong topology), so
-the verification below explicitly checks Nagatha's **effective** role.
+the verification below explicitly checks Heron's **effective** role.
 
-> **Enabling the subscriber ≠ Nagatha coordinating.** Enabling the subscriber
-> makes an agent's *ingress* live (it receives its lanes). For Nagatha the
+> **Enabling the subscriber ≠ Heron coordinating.** Enabling the subscriber
+> makes an agent's *ingress* live (it receives its lanes). For Heron the
 > manager, the coordination behavior — handling worker `status` and serving
 > `arbitrate` — is owned by the **orchestrator run-loop**, which subscribes those
 > task-keyed lanes per task. That loop is **Phase 9**, not Phase 7. So enabling
-> Nagatha's subscriber alone makes her reachable, but she is not a functioning
+> Heron's subscriber alone makes her reachable, but she is not a functioning
 > coordinator until the Phase-9 orchestrator loop runs. Do not read a connected
-> Nagatha subscriber as "manager working."
+> Heron subscriber as "manager working."
 
 ### `FLEET_VOICE_TEE_*` — optional Discord voice tee (#55, default OFF)
 
@@ -123,7 +123,7 @@ client, no webhooks).
 ### `allow_bots` — the safety line (env-only, never `none`)
 
 - `allow_bots` stays **env-only** and is **never `none`**: a worker needs at
-  least `mentions`; Nagatha (manager) may be `all`.
+  least `mentions`; Heron (manager) may be `all`.
 - **Do NOT** put `allow_bots` into the config→env bridge — it is set directly in
   the agent's environment, not derived from config, so a config restore can never
   silently drop it to `none`.
@@ -237,19 +237,19 @@ For each agent, in the maintainer-authorized deploy window:
    a ledger entry.
 2. Set the agent's env: `FLEET_NATS_URL`, `FLEET_AGENT_ID`, `FLEET_ENV`,
    `FLEET_ROLE` (table above), and set `allow_bots` to `mentions` (or `all` for
-   Nagatha), **not** `none`. (Verification of the *effective* value is step 6 —
+   Heron), **not** `none`. (Verification of the *effective* value is step 6 —
    setting it here is not proof it took.)
 3. Register the plugin (already shipped: `fleet_subscriber` exposes `register`
    via its `plugin.yaml`) so the gateway loads the `nats` platform on start.
 4. Apply through the **front door**, never raw ssh:
    ```
-   restore-customizations --agent <bilby|skippy|nagatha> --apply
+   restore-customizations --agent <finch|wren|heron> --apply
    ```
 5. Restart/reload the gateway per the front-door apply's own procedure (not a
    hand-rolled process kill).
 6. **Verify effective state** (next section) — a config file present is not
    "enabled"; the running agent must report the subscriber connected, its
-   effective `allow_bots` ≠ `none`, and (Nagatha) its effective role = `manager`.
+   effective `allow_bots` ≠ `none`, and (Heron) its effective role = `manager`.
 
 ## Verification — effective state, not config assumption
 
@@ -274,13 +274,13 @@ not be recorded as the gate passing.
 see a gateway's `allow_bots` — it is the gateway's resolved config. Read the
 **running gateway's effective** `allow_bots` on each host (the gateway's own
 resolved-config surface, not the raw env), and confirm it is `mentions` (or `all`
-for Nagatha), never `none`. Reading the env you set in step 2 is config-assumption
+for Heron), never `none`. Reading the env you set in step 2 is config-assumption
 and does not count.
 
-**3. Effective role = `manager` (Nagatha only).** Confirm Nagatha came up as the
+**3. Effective role = `manager` (Heron only).** Confirm Heron came up as the
 manager, not a silently-defaulted worker: grep her subscriber's `connect` log for
 the resolved role line — the adapter logs one `subscribed subject=… lane=… role=…`
-line per lane plus `ready agent=nagatha … role=manager`. A manager logs a single
+line per lane plus `ready agent=heron … role=manager`. A manager logs a single
 `lane=inbox` subscription and `role=manager`; a mis-defaulted worker would log
 `lane=dispatch`/`relay`/`wake` and `role=worker`. (The connection log is the
 authoritative per-lane evidence; NATS `/connz` does **not** return per-connection
@@ -303,7 +303,7 @@ If an agent misbehaves after enable:
 3. Re-verify the agent's effective state with **all three** checks from the
    Verification section: the probe (`specs/probe-trio-subscribers.sh`) for the
    subscriber connection, the per-host gateway read for `allow_bots ≠ none`, and
-   (Nagatha) the log check for `role=manager`. The probe alone does **not** cover
+   (Heron) the log check for `role=manager`. The probe alone does **not** cover
    `allow_bots` — it only sees the bus connection — so the gateway read is a
    separate, required step on rollback too.
 
@@ -358,7 +358,7 @@ has no `@peer` mention. If relays aren't firing:
 - Confirm the manager's orchestrator loop is running and subscribed to
   `agent_status(env, task_id)` for the task — the relay is driven from that
   subscription, and (as of Phase 7) that loop is Phase 9, so an
-  ingress-only-enabled Nagatha will not relay yet.
+  ingress-only-enabled Heron will not relay yet.
 - Confirm the worker's status actually omits the peer mention — a status that
   *does* `@peer` correctly suppresses the relay (that is the intended behavior,
   not a bug).
@@ -463,7 +463,7 @@ required.`
 3. Falling back: `Governor.resume(task_id)` in-process, or restart the
    orchestrator (pause state is in-memory by design; the durable record lives on
    the k-board). The control frame is the no-restart path and the only one a
-   Nagatha-side steer tool can use.
+   Heron-side steer tool can use.
 4. The message counter resets on resume; the token ledger does NOT (spend is
    history — raise `FLEET_BUDGET_TOKENS` if the task legitimately needs more).
 
@@ -547,11 +547,11 @@ Step 2 above is a *control frame*, not a shell command — and in production the
 only thing that publishes one is the **`fleet_control`** tool, registered on the
 manager's subscriber (`FLEET_ROLE=manager` only; workers do not steer the
 governor). It is the human end of the #61 wire: it calls the existing
-`fleet_nats.control.publish_control` — no new frame format — so the frame Nagatha
+`fleet_nats.control.publish_control` — no new frame format — so the frame Heron
 sends is byte-for-byte the one the hub's `parse_control` reads.
 
-**WHEN Nagatha uses it:** a human in Discord steers the run — "resume the run",
-"pause t_42", "resume and give it more budget". Nagatha reads the target task id
+**WHEN Heron uses it:** a human in Discord steers the run — "resume the run",
+"pause t_42", "resume and give it more budget". Heron reads the target task id
 straight off the PAUSED beat she posted (`[t_42] PAUSED over budget ...`), then
 pulls the lever:
 
@@ -568,13 +568,13 @@ pulls the lever:
   (positive, and tool-capped) and applies to `resume` only. A mixed-case/dotted
   `task_id` is slugged once so the subject, payload, and receipt are one value
   (no hub-keying mismatch).
-- **Audit (WHO + WHY):** the frame's `sender` is Nagatha's `FLEET_AGENT_ID` (WHO)
+- **Audit (WHO + WHY):** the frame's `sender` is Heron's `FLEET_AGENT_ID` (WHO)
   and the `reason` rides the frame's payload (WHY). Both are logged **hub-side**
   on the resume/pause — the audit record is inspectable at the hub, not only in
   the tool's local log. That is the point of threading `reason` onto the frame:
   the WHO+WHY of a steer must be hub-inspectable.
 
-**Why the lever matters, in Nagatha's words:** a steer that only *looks* like a
+**Why the lever matters, in Heron's words:** a steer that only *looks* like a
 command is theater. *"If it cannot be inspected, it is not a command; it is
 theater."* Posting "resuming the run" in Discord without publishing a control
 frame changes nothing — the paused governor stays paused. `fleet_control` is what
@@ -838,7 +838,7 @@ old control connection and reconnects, so a later authoritative release is able
 to resume the hub and workers.
 ## Orchestrator hub — the Phase-9 run-loop service (#9)
 
-Enabling Nagatha's subscriber makes her *reachable* (ingress); it does NOT make
+Enabling Heron's subscriber makes her *reachable* (ingress); it does NOT make
 her coordinate. Coordination — handling worker `status`, firing relays, walking
 the offline ladder, persisting to k-board, narrating — is owned by the
 **orchestrator run-loop**, a distinct long-lived service. That service is
@@ -880,7 +880,7 @@ agent turn and survives agent restarts.
 | `FLEET_AGENT_ID` | the hub's own bus identity (usually the manager id) | `unknown` |
 | `FLEET_ENV` | subject env prefix — exactly `dev` or `prod`, case-sensitive (matches `BusConfig`). The **prod hub MUST set exactly `prod`**: it selects the prod subject prefix AND arms the default-on replay trace (#108). Code default is `dev` (off-by-default trace); a prod unit left at `dev` runs with capture silently off (review P1-1). | `dev` (prod unit sets `prod`) |
 | `FLEET_MANAGER_ID` | **required** — the manager id the hub narrates as | — |
-| `FLEET_WORKERS` | **required** — comma-separated default worker ids (e.g. `skippy,bilby`) | — |
+| `FLEET_WORKERS` | **required** — comma-separated default worker ids (e.g. `wren,finch`) | — |
 | `FLEET_BUDGET_MSGS` / `FLEET_BUDGET_TOKENS` | governor caps (above) | `200` / `150000` |
 | `FLEET_GOVERNOR_DURABLE` | persist/resume governor counters via JetStream KV server-CAS — **IDENTITY-GATED, operator-only** (above) | `false` |
 | `FLEET_DISPATCH_TIMEOUT_SECONDS` | offline-ladder silence window per rung | `300` |
@@ -894,7 +894,7 @@ agent turn and survives agent restarts.
 | `FLEET_NATS_NAME` | override the `fleet-orchestrator-hub` connection name | (do not set) |
 
 The **arena narration channel** (`<arena-channel-id>`) is the Discord channel
-Nagatha's own gateway posts her narration beats into — the hub only publishes
+Heron's own gateway posts her narration beats into — the hub only publishes
 beats to her `agent_inbox`; her adapter → her gateway → her post is what reaches
 that channel. The channel id is not the hub's config (it never touches Discord).
 
@@ -1042,9 +1042,9 @@ its required reviewers.
    Group=fleetdeploy
    Environment=FLEET_NATS_URL=nats://192.0.2.74:4222
    Environment=FLEET_ENV=prod
-   Environment=FLEET_AGENT_ID=nagatha
-   Environment=FLEET_MANAGER_ID=nagatha
-   Environment=FLEET_WORKERS=skippy,bilby
+   Environment=FLEET_AGENT_ID=heron
+   Environment=FLEET_MANAGER_ID=heron
+   Environment=FLEET_WORKERS=wren,finch
    # Must exactly match the release deploy probe contract.
    Environment=FLEET_NATS_NAME=fleet-orchestrator-hub
    # Required while the default-on intake poller is enabled: every organic

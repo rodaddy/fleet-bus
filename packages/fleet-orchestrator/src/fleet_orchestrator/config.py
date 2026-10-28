@@ -134,9 +134,7 @@ def _workers_env(var: str) -> tuple[str, ...]:
     """Read a comma-separated worker list; fail loud when empty (no one to dispatch to)."""
     raw = os.environ.get(var)
     if not raw:
-        raise ValueError(
-            f"{var} is required (comma-separated worker agent ids, e.g. 'skippy,bilby')"
-        )
+        raise ValueError(f"{var} is required (comma-separated worker agent ids, e.g. 'wren,finch')")
     workers = tuple(w.strip() for w in raw.split(",") if w.strip())
     if not workers:
         raise ValueError(f"{var} must name at least one worker, got {raw!r}")
@@ -157,8 +155,8 @@ class HubConfig:
         bus: The fleet bus connection config (identity, url, env, connection
             name) — from :func:`~fleet_nats.BusConfig.from_env`.
         manager: The manager agent id whose identity the hub coordinates as and
-            whose inbox the single narrator posts to (e.g. ``nagatha``).
-        workers: The worker agent ids a new task fans out to (e.g. skippy, bilby).
+            whose inbox the single narrator posts to (e.g. ``heron``).
+        workers: The worker agent ids a new task fans out to (e.g. wren, finch).
         budget: The per-task back-channel caps (governor).
         dispatch_timeout_s: The offline-ladder silence window per rung.
         offline_poll_s: How often the loop advances the offline ladder.
@@ -190,7 +188,7 @@ class HubConfig:
             IDLE expected agent going dark (the task-scoped offline ladder cannot
             see it). Report-only: no wake/redispatch.
         fleet_expected: The expected roster the sweep checks (e.g.
-            skippy,bilby,nagatha). REQUIRED whenever the sweep is enabled: an
+            wren,finch,heron). REQUIRED whenever the sweep is enabled: an
             enabled-but-rosterless sweep refuses to start (fail closed), mirroring
             the intake label. Empty when the sweep is disabled.
         fleet_liveness_consecutive: Consecutive silent sweeps before an expected
@@ -260,7 +258,7 @@ class HubConfig:
             raise ValueError(
                 f"{_ENV_EXPECTED_AGENTS} is required when the fleet-liveness sweep is enabled "
                 f"(the expected roster; an enabled sweep with no agents has nothing to check "
-                f"— fleet-bus #78). Set it to a comma list (e.g. 'skippy,bilby,nagatha'), or "
+                f"— fleet-bus #78). Set it to a comma list (e.g. 'wren,finch,heron'), or "
                 f"disable the sweep with {_ENV_LIVENESS_ENABLED}=false."
             )
 
@@ -280,7 +278,7 @@ class HubConfig:
         bus = BusConfig.from_env()
         manager = os.environ.get(_ENV_MANAGER, "").strip()
         if not manager:
-            raise ValueError(f"{_ENV_MANAGER} is required (the manager agent id, e.g. 'nagatha')")
+            raise ValueError(f"{_ENV_MANAGER} is required (the manager agent id, e.g. 'heron')")
         # BusConfig.from_env defaults FLEET_AGENT_ID to the literal "unknown" when
         # unset; the hub stamps every coordination envelope's sender from this id,
         # so a missing var would put "unknown" on live traffic. Default the hub's

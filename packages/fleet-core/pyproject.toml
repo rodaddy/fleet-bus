@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Base fleet-bus client package: typed spec, config, logging, and transport boundaries."
 # Floor 3.13 (fleet standard), matching fleet-nats.
 requires-python = ">=3.13"
+license = "MIT"
 dependencies = [
     "pydantic>=2",
     # The fleet's one logging dependency (docs/logging.md), matching the

@@ -19,8 +19,8 @@ def _session(task_id: str = "t-1") -> CoordinationSession:
     return CoordinationSession(
         task_id=task_id,
         channel="dash-dev",
-        manager="nagatha",
-        workers=("skippy", "bilby"),
+        manager="heron",
+        workers=("wren", "finch"),
         state=State.WORKING,
     )
 
@@ -29,7 +29,7 @@ def _cost(task_id: str, turn: str, total: int) -> Envelope:
     return token_cost_envelope(
         msg_id=f"tc-{turn}",
         ts="2026-07-08T00:00:00Z",
-        sender="bilby",
+        sender="finch",
         task_id=task_id,
         turn_id=turn,
         prompt_tokens=total,
@@ -84,13 +84,13 @@ def test_governor_gate_noops_bus_behavior_for_paused_task_only() -> None:
     gov = Governor(Budget(max_msgs=1, max_tokens=10))
     gov.note_message("t-1")
     gov.note_message("t-1")  # breach → paused
-    paused_action = Action(kind=ActionKind.DISPATCH, session=_session("t-1"), target="bilby")
+    paused_action = Action(kind=ActionKind.DISPATCH, session=_session("t-1"), target="finch")
     gated = gov.gate(paused_action)
     assert gated.kind is ActionKind.NOOP
     assert "paused by governor (msgs)" in gated.reason
     assert gated.session is paused_action.session  # persistence unaffected
 
-    other = Action(kind=ActionKind.DISPATCH, session=_session("t-2"), target="bilby")
+    other = Action(kind=ActionKind.DISPATCH, session=_session("t-2"), target="finch")
     assert gov.gate(other) is other  # unpaused tasks flow through untouched
 
 
@@ -126,7 +126,7 @@ def test_governor_budget_from_env_default_and_failloud(monkeypatch: pytest.Monke
 
 
 def test_governor_resume_is_idempotent_for_an_unpaused_task() -> None:
-    # Nagatha requirement #1 (#59): a resume for a task that isn't paused is a
+    # Heron requirement #1 (#59): a resume for a task that isn't paused is a
     # loud no-op returning False — never an error/crash (safe for a duplicate
     # control frame; app-level, transport is at-most-once, C5).
     gov = Governor(Budget(max_msgs=5, max_tokens=10))
@@ -136,7 +136,7 @@ def test_governor_resume_is_idempotent_for_an_unpaused_task() -> None:
 
 
 def test_governor_resume_with_bounded_budget_add_raises_only_this_task() -> None:
-    # Nagatha requirement #2 (#59): budget_msgs_add is a BOUNDED per-task add — it
+    # Heron requirement #2 (#59): budget_msgs_add is a BOUNDED per-task add — it
     # raises this task's cap by exactly N and touches no other task/the shared cap.
     gov = Governor(Budget(max_msgs=2, max_tokens=10_000))
     gov.note_message("t-1")
@@ -179,7 +179,7 @@ def test_governor_manual_pause_gates_bus_behavior_and_is_idempotent() -> None:
     assert gov.pause("t-1") is True
     assert gov.is_paused("t-1") is True
     assert gov.pause("t-1") is False  # already paused → no-op
-    action = Action(kind=ActionKind.DISPATCH, session=_session("t-1"), target="bilby")
+    action = Action(kind=ActionKind.DISPATCH, session=_session("t-1"), target="finch")
     assert gov.gate(action).kind is ActionKind.NOOP
     assert gov.resume("t-1") is True  # symmetric resume clears the manual pause
     assert gov.is_paused("t-1") is False
@@ -190,84 +190,84 @@ def test_governor_manual_pause_gates_bus_behavior_and_is_idempotent() -> None:
 
 def test_governor_relay_loop_trips_once_on_third_alternating_edge() -> None:
     gov = Governor(Budget(max_msgs=100, max_tokens=10_000))
-    assert gov.note_relay("t-1", "e1", "skippy", "bilby", 0.0) is None
-    assert gov.note_relay("t-1", "e2", "bilby", "skippy", 1.0) is None
-    breach = gov.note_relay("t-1", "e3", "skippy", "bilby", 2.0)
+    assert gov.note_relay("t-1", "e1", "wren", "finch", 0.0) is None
+    assert gov.note_relay("t-1", "e2", "finch", "wren", 1.0) is None
+    breach = gov.note_relay("t-1", "e3", "wren", "finch", 2.0)
     assert breach is not None
     assert breach.kind is BreachKind.RELAY_LOOP
     assert (breach.observed, breach.cap) == (3, 3)
     assert gov.is_paused("t-1") is True
-    assert gov.note_relay("t-1", "e4", "bilby", "skippy", 3.0) is None
+    assert gov.note_relay("t-1", "e4", "finch", "wren", 3.0) is None
 
 
 def test_governor_relay_loop_dedups_envelope_ids() -> None:
     gov = Governor(Budget(max_msgs=100, max_tokens=10_000))
-    assert gov.note_relay("t-1", "e1", "skippy", "bilby", 0.0) is None
-    assert gov.note_relay("t-1", "e2", "bilby", "skippy", 1.0) is None
-    assert gov.note_relay("t-1", "e2", "bilby", "skippy", 1.0) is None
+    assert gov.note_relay("t-1", "e1", "wren", "finch", 0.0) is None
+    assert gov.note_relay("t-1", "e2", "finch", "wren", 1.0) is None
+    assert gov.note_relay("t-1", "e2", "finch", "wren", 1.0) is None
     assert gov.is_paused("t-1") is False
-    assert gov.note_relay("t-1", "e3", "skippy", "bilby", 2.0) is not None
+    assert gov.note_relay("t-1", "e3", "wren", "finch", 2.0) is not None
 
 
 def test_governor_relay_loop_self_edges_never_advance_alternation() -> None:
     gov = Governor(Budget(max_msgs=100, max_tokens=10_000))
     for index in range(3):
-        assert gov.note_relay("t-1", f"self-{index}", "skippy", "skippy", float(index)) is None
+        assert gov.note_relay("t-1", f"self-{index}", "wren", "wren", float(index)) is None
     assert gov.is_paused("t-1") is False
 
-    assert gov.note_relay("t-1", "pair-1", "skippy", "bilby", 3.0) is None
-    assert gov.note_relay("t-1", "pair-2", "bilby", "skippy", 4.0) is None
-    breach = gov.note_relay("t-1", "pair-3", "skippy", "bilby", 5.0)
+    assert gov.note_relay("t-1", "pair-1", "wren", "finch", 3.0) is None
+    assert gov.note_relay("t-1", "pair-2", "finch", "wren", 4.0) is None
+    breach = gov.note_relay("t-1", "pair-3", "wren", "finch", 5.0)
     assert breach is not None
     assert breach.kind is BreachKind.RELAY_LOOP
 
 
 def test_governor_relay_loop_isolates_tasks_and_resets_on_pair_break() -> None:
     gov = Governor(Budget(max_msgs=100, max_tokens=10_000))
-    assert gov.note_relay("t-1", "a1", "skippy", "bilby", 0.0) is None
-    assert gov.note_relay("t-2", "b1", "skippy", "bilby", 0.0) is None
-    assert gov.note_relay("t-1", "a2", "bilby", "clarisa", 1.0) is None
-    assert gov.note_relay("t-2", "b2", "bilby", "skippy", 1.0) is None
-    assert gov.note_relay("t-1", "a3", "clarisa", "bilby", 2.0) is None
-    assert gov.note_relay("t-2", "b3", "skippy", "bilby", 2.0) is not None
+    assert gov.note_relay("t-1", "a1", "wren", "finch", 0.0) is None
+    assert gov.note_relay("t-2", "b1", "wren", "finch", 0.0) is None
+    assert gov.note_relay("t-1", "a2", "finch", "lark", 1.0) is None
+    assert gov.note_relay("t-2", "b2", "finch", "wren", 1.0) is None
+    assert gov.note_relay("t-1", "a3", "lark", "finch", 2.0) is None
+    assert gov.note_relay("t-2", "b3", "wren", "finch", 2.0) is not None
     assert gov.is_paused("t-1") is False
 
 
 def test_governor_relay_loop_resets_after_window() -> None:
     gov = Governor(Budget(max_msgs=100, max_tokens=10_000))
-    assert gov.note_relay("t-1", "e1", "skippy", "bilby", 0.0) is None
-    assert gov.note_relay("t-1", "e2", "bilby", "skippy", 1.0) is None
-    assert gov.note_relay("t-1", "e3", "skippy", "bilby", 7.0) is None
-    assert gov.note_relay("t-1", "e4", "bilby", "skippy", 8.0) is None
-    assert gov.note_relay("t-1", "e5", "skippy", "bilby", 9.0) is not None
+    assert gov.note_relay("t-1", "e1", "wren", "finch", 0.0) is None
+    assert gov.note_relay("t-1", "e2", "finch", "wren", 1.0) is None
+    assert gov.note_relay("t-1", "e3", "wren", "finch", 7.0) is None
+    assert gov.note_relay("t-1", "e4", "finch", "wren", 8.0) is None
+    assert gov.note_relay("t-1", "e5", "wren", "finch", 9.0) is not None
 
 
 def test_governor_relay_loop_resume_and_completion_clear_state() -> None:
     gov = Governor(Budget(max_msgs=100, max_tokens=10_000))
     for envelope_id, sender, target, now in (
-        ("e1", "skippy", "bilby", 0.0),
-        ("e2", "bilby", "skippy", 1.0),
-        ("e3", "skippy", "bilby", 2.0),
+        ("e1", "wren", "finch", 0.0),
+        ("e2", "finch", "wren", 1.0),
+        ("e3", "wren", "finch", 2.0),
     ):
         gov.note_relay("t-1", envelope_id, sender, target, now)
     assert gov.resume("t-1") is True
-    assert gov.note_relay("t-1", "e4", "bilby", "skippy", 3.0) is None
-    assert gov.note_relay("t-1", "e5", "skippy", "bilby", 4.0) is None
+    assert gov.note_relay("t-1", "e4", "finch", "wren", 3.0) is None
+    assert gov.note_relay("t-1", "e5", "wren", "finch", 4.0) is None
 
     gov.complete_task("t-1")
     assert gov.is_paused("t-1") is False
-    assert gov.note_relay("t-1", "e1", "skippy", "bilby", 5.0) is None
-    assert gov.note_relay("t-1", "e2", "bilby", "skippy", 6.0) is None
+    assert gov.note_relay("t-1", "e1", "wren", "finch", 5.0) is None
+    assert gov.note_relay("t-1", "e2", "finch", "wren", 6.0) is None
 
 
 def test_governor_unpaused_resume_preserves_relay_run() -> None:
     gov = Governor(Budget(max_msgs=100, max_tokens=10_000))
-    assert gov.note_relay("t-1", "e1", "skippy", "bilby", 0.0) is None
-    assert gov.note_relay("t-1", "e2", "bilby", "skippy", 1.0) is None
+    assert gov.note_relay("t-1", "e1", "wren", "finch", 0.0) is None
+    assert gov.note_relay("t-1", "e2", "finch", "wren", 1.0) is None
 
     assert gov.resume("t-1", budget_msgs_add=10) is False
 
-    breach = gov.note_relay("t-1", "e3", "skippy", "bilby", 2.0)
+    breach = gov.note_relay("t-1", "e3", "wren", "finch", 2.0)
     assert breach is not None
     assert breach.kind is BreachKind.RELAY_LOOP
 
@@ -284,7 +284,7 @@ class _Bus:
 
     @property
     def config(self) -> BusConfig:
-        return BusConfig(agent_id="nagatha", env="dev")
+        return BusConfig(agent_id="heron", env="dev")
 
     async def publish(self, subject: str, envelope: Envelope) -> None:
         self.published.append((subject, envelope))
@@ -328,7 +328,7 @@ def _wired(
     ids = (f"g{i}" for i in itertools.count())
     clock = IdClock(new_id=lambda: next(ids), now=lambda: "2026-07-08T00:00:00Z")
     governor = Governor(Budget(max_msgs=max_msgs, max_tokens=max_tokens), ledger=ledger)
-    narrator = Narrator(bus, env="dev", manager="nagatha", new_id=clock.new_id, now=clock.now)
+    narrator = Narrator(bus, env="dev", manager="heron", new_id=clock.new_id, now=clock.now)
     # _Bus/_Kboard duck-type the subsets the Orchestrator uses (test-only casts).
     orch = Orchestrator(
         bus,  # type: ignore[arg-type]
@@ -344,8 +344,8 @@ def _dispatched(task_id: str = "t-1") -> CoordinationSession:
     return CoordinationSession(
         task_id=task_id,
         channel="dash-dev",
-        manager="nagatha",
-        workers=("skippy", "bilby"),
+        manager="heron",
+        workers=("wren", "finch"),
         state=State.DISPATCHED,
     )
 
@@ -365,7 +365,7 @@ async def test_governor_wired_breach_gates_the_breaching_action_and_narrates() -
     assert "paused by governor (msgs)" in second.reason
     new = bus.published[dispatches_before:]
     assert [env.kind for _, env in new] == [NARRATION_KIND]
-    assert new[0][0] == subjects.agent_inbox("dev", "nagatha")
+    assert new[0][0] == subjects.agent_inbox("dev", "heron")
     assert governor.is_paused("t-1") is True
 
 
@@ -375,12 +375,12 @@ async def test_governor_wired_wake_and_redispatch_honor_the_pause() -> None:
     governor.note_message("t-1")  # breach → paused
     session = _dispatched()
     before = len(bus.published)
-    await orch.wake_worker(session, "skippy")
-    await orch.redispatch(session, "skippy")
+    await orch.wake_worker(session, "wren")
+    await orch.redispatch(session, "wren")
     assert bus.published[before:] == []  # a paused task performs NO bus behavior
 
     assert governor.resume("t-1") is True
-    await orch.wake_worker(session, "skippy")
+    await orch.wake_worker(session, "wren")
     assert [env.kind for _, env in bus.published[before:]] == ["wake"]
 
 
@@ -397,13 +397,13 @@ async def test_governor_wired_wake_and_redispatch_honor_the_fleet_kill() -> None
     governor.pause_all()  # arm the out-of-band fleet kill
     session = _dispatched()
     before = len(bus.published)
-    await orch.wake_worker(session, "skippy")
-    await orch.redispatch(session, "skippy")
+    await orch.wake_worker(session, "wren")
+    await orch.redispatch(session, "wren")
     assert bus.published[before:] == [], "an armed fleet kill must halt wake AND redispatch"
 
     # Releasing the fleet kill lets the offline wake flow again (orthogonal to budget).
     assert governor.resume_all() is True
-    await orch.wake_worker(session, "skippy")
+    await orch.wake_worker(session, "wren")
     assert [env.kind for _, env in bus.published[before:]] == ["wake"]
 
 
@@ -468,7 +468,7 @@ async def test_governor_token_cost_watch_persists_spend_and_breach_state() -> No
         ledger=CostLedger(),
         store=store,
     )
-    narrator = Narrator(bus, env="dev", manager="nagatha", new_id=clock.new_id, now=clock.now)
+    narrator = Narrator(bus, env="dev", manager="heron", new_id=clock.new_id, now=clock.now)
     orch = Orchestrator(
         bus,  # type: ignore[arg-type]
         clock,
@@ -524,7 +524,7 @@ def test_governor_pause_all_gates_every_task_without_a_task_id() -> None:
     assert gov.is_all_paused() is True
 
     for task_id in ("t-1", "t-2", "t-freshly-created"):
-        action = Action(kind=ActionKind.DISPATCH, session=_session(task_id), target="bilby")
+        action = Action(kind=ActionKind.DISPATCH, session=_session(task_id), target="finch")
         gated = gov.gate(action)
         assert gated.kind is ActionKind.NOOP
         assert "fleet kill switch armed" in gated.reason
@@ -546,7 +546,7 @@ def test_governor_kill_noops_every_non_terminal_kind(kind: ActionKind) -> None:
     """
     gov = Governor(Budget(max_msgs=200, max_tokens=150_000))
     gov.pause_all()
-    action = Action(kind=kind, session=_session("t-1"), target="bilby")
+    action = Action(kind=kind, session=_session("t-1"), target="finch")
     gated = gov.gate(action)
     assert gated.kind is ActionKind.NOOP
     assert "fleet kill switch armed" in gated.reason
@@ -578,7 +578,7 @@ def test_governor_resume_all_restores_prior_per_task_posture() -> None:
 
     gov.pause_all()  # arm the fleet kill on top
     # Under the kill, EVEN a healthy task is gated.
-    healthy = Action(kind=ActionKind.DISPATCH, session=_session("t-healthy"), target="bilby")
+    healthy = Action(kind=ActionKind.DISPATCH, session=_session("t-healthy"), target="finch")
     assert gov.gate(healthy).kind is ActionKind.NOOP
 
     gov.resume_all()  # release the fleet kill
@@ -586,7 +586,7 @@ def test_governor_resume_all_restores_prior_per_task_posture() -> None:
     assert gov.gate(healthy) is healthy
     # ...but the budget-paused task is STILL paused (kill was orthogonal).
     assert gov.is_paused("t-paused") is True
-    paused = Action(kind=ActionKind.DISPATCH, session=_session("t-paused"), target="bilby")
+    paused = Action(kind=ActionKind.DISPATCH, session=_session("t-paused"), target="finch")
     assert gov.gate(paused).kind is ActionKind.NOOP
     assert "paused by governor (msgs)" in gov.gate(paused).reason
 

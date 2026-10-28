@@ -57,7 +57,7 @@ def _reply(request: Envelope, payload: dict[str, str]) -> Envelope:
     return Envelope.new(
         msg_id="reply",
         ts="t",
-        sender="nagatha",
+        sender="heron",
         kind="show_work",
         correlation_id=request.id,
         payload=payload,
@@ -65,11 +65,11 @@ def _reply(request: Envelope, payload: dict[str, str]) -> Envelope:
 
 
 async def test_requests_sanctioned_subject_and_payload(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://127.0.0.1:4222")
     monkeypatch.setenv("FLEET_ENV", "dev")
     monkeypatch.setattr(show_work, "FleetBus", FakeBus)
-    original = show_work._request("task-1", "skippy")
+    original = show_work._request("task-1", "wren")
     FakeBus.response = _reply(original, {"markdown": "## Summary\nredacted"})
 
     # The client generates a fresh id; mirror it in the fake response at request time.
@@ -97,7 +97,7 @@ async def test_invalid_input_never_opens_transport(args: dict[str, str]) -> None
 
 
 async def test_timeout_or_no_responder_is_safe(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://127.0.0.1:4222")
     monkeypatch.setenv("FLEET_ENV", "dev")
     monkeypatch.setattr(show_work, "FleetBus", FakeBus)
@@ -111,7 +111,7 @@ async def test_timeout_or_no_responder_is_safe(monkeypatch: pytest.MonkeyPatch) 
 async def test_invalid_utf8_or_oversized_response_is_refused(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://127.0.0.1:4222")
     monkeypatch.setenv("FLEET_ENV", "dev")
     monkeypatch.setattr(show_work, "FleetBus", FakeBus)
@@ -131,7 +131,7 @@ async def test_invalid_utf8_or_oversized_response_is_refused(
 async def test_markdown_budget_does_not_include_envelope_overhead(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://127.0.0.1:4222")
     monkeypatch.setenv("FLEET_ENV", "dev")
     monkeypatch.setattr(show_work, "FleetBus", FakeBus)
@@ -152,7 +152,7 @@ async def test_markdown_budget_does_not_include_envelope_overhead(
 async def test_accepts_full_budget_unicode_markdown(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://127.0.0.1:4222")
     monkeypatch.setenv("FLEET_ENV", "dev")
     monkeypatch.setattr(show_work, "FleetBus", FakeBus)
@@ -173,7 +173,7 @@ async def test_accepts_full_budget_unicode_markdown(
 async def test_response_requires_exact_envelope_and_payload_shapes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("FLEET_AGENT_ID", "skippy")
+    monkeypatch.setenv("FLEET_AGENT_ID", "wren")
     monkeypatch.setenv("FLEET_NATS_URL", "nats://127.0.0.1:4222")
     monkeypatch.setenv("FLEET_ENV", "dev")
     monkeypatch.setattr(show_work, "FleetBus", FakeBus)

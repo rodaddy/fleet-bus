@@ -81,7 +81,7 @@ def _emitter(
         kwargs["sleep"] = sleeper
     return HeartbeatEmitter(
         bus,
-        agent_id="bilby",
+        agent_id="finch",
         env="dev",
         role="worker",
         lanes=("dispatch", "relay", "wake", "inbox"),
@@ -100,13 +100,13 @@ async def test_beat_publishes_parseable_heartbeat_on_the_agent_lane() -> None:
     emitter = _emitter(bus)
     await emitter.beat()
     (subject, env), *_ = bus.published
-    assert subject == "dev.agent.heartbeat.bilby"
+    assert subject == "dev.agent.heartbeat.finch"
     hb = parse_heartbeat(env)
     assert isinstance(env, Envelope)
     assert env.typed_signal is not None
     assert isinstance(env.typed_signal, Heartbeat)
     assert env.typed_signal.jetstream is False
-    assert hb.agent_id == "bilby"
+    assert hb.agent_id == "finch"
     assert hb.role == "worker"
     assert hb.lanes == ("dispatch", "relay", "wake", "inbox")
     assert hb.seq == 1

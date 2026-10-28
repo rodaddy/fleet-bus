@@ -16,7 +16,7 @@ def _beat() -> Envelope:
     return heartbeat_envelope(
         msg_id="m1",
         ts="2026-07-08T00:00:00Z",
-        sender="bilby",
+        sender="finch",
         role="worker",
         lanes=("dispatch", "relay", "wake", "inbox"),
         seq=7,
@@ -31,7 +31,7 @@ def test_wire_round_trip() -> None:
     env = Envelope.from_bytes(_beat().to_bytes())
     hb = parse_heartbeat(env)
     assert isinstance(hb, CoreHeartbeat)
-    assert hb.agent_id == "bilby"
+    assert hb.agent_id == "finch"
     assert hb.role == "worker"
     assert hb.lanes == ("dispatch", "relay", "wake", "inbox")
     assert hb.seq == 7
@@ -46,7 +46,7 @@ def test_typed_heartbeat_roundtrip_prefers_core_delivery() -> None:
     env = Envelope.from_bytes(_beat().to_bytes())
     assert isinstance(env.typed_signal, CoreHeartbeat)
     assert env.prefers_core_delivery() is True
-    assert env.typed_signal.agent_id == "bilby"
+    assert env.typed_signal.agent_id == "finch"
     assert env.typed_signal.catalog_version == 5
     assert env.typed_signal.package_version == "0.3.1"
     assert env.typed_signal.jetstream is False
@@ -56,7 +56,7 @@ def test_heartbeat_payload_stays_legacy_shape() -> None:
     """Payload consumers still see the pre-typed-signal heartbeat shape."""
     env = _beat()
     assert env.payload == {
-        "agent_id": "bilby",
+        "agent_id": "finch",
         "role": "worker",
         "lanes": ["dispatch", "relay", "wake", "inbox"],
         "seq": 7,
@@ -71,10 +71,10 @@ def test_opaque_heartbeat_spoof_remains_durable() -> None:
     env = Envelope.new(
         msg_id="m",
         ts="t",
-        sender="bilby",
+        sender="finch",
         kind="heartbeat",
         payload={
-            "agent_id": "bilby",
+            "agent_id": "finch",
             "role": "worker",
             "lanes": ["inbox"],
             "seq": 1,
@@ -84,7 +84,7 @@ def test_opaque_heartbeat_spoof_remains_durable() -> None:
     )
     assert env.typed_signal is None
     assert env.prefers_core_delivery() is False
-    assert parse_heartbeat(env).agent_id == "bilby"
+    assert parse_heartbeat(env).agent_id == "finch"
 
 
 def test_catalog_version_absent_parses_as_none() -> None:
@@ -93,10 +93,10 @@ def test_catalog_version_absent_parses_as_none() -> None:
     env = Envelope.new(
         msg_id="m",
         ts="t",
-        sender="bilby",
+        sender="finch",
         kind="heartbeat",
         payload={
-            "agent_id": "bilby",
+            "agent_id": "finch",
             "role": "worker",
             "lanes": ["inbox"],
             "seq": 1,
@@ -113,10 +113,10 @@ def test_package_version_absent_parses_as_none() -> None:
     env = Envelope.new(
         msg_id="m",
         ts="t",
-        sender="bilby",
+        sender="finch",
         kind="heartbeat",
         payload={
-            "agent_id": "bilby",
+            "agent_id": "finch",
             "role": "worker",
             "lanes": ["inbox"],
             "seq": 1,
@@ -131,7 +131,7 @@ def test_null_package_version_is_valid() -> None:
     env = heartbeat_envelope(
         msg_id="m4",
         ts="t",
-        sender="skippy",
+        sender="wren",
         role="worker",
         lanes=("inbox",),
         seq=0,
@@ -147,7 +147,7 @@ def test_package_version_round_trips_through_wire() -> None:
     env = heartbeat_envelope(
         msg_id="m5",
         ts="t",
-        sender="skippy",
+        sender="wren",
         role="worker",
         lanes=("inbox",),
         seq=1,
@@ -164,7 +164,7 @@ def test_null_catalog_version_is_valid() -> None:
     env = heartbeat_envelope(
         msg_id="m3",
         ts="t",
-        sender="skippy",
+        sender="wren",
         role="worker",
         lanes=("inbox",),
         seq=0,
@@ -178,7 +178,7 @@ def test_null_last_turn_ts_is_valid() -> None:
     env = heartbeat_envelope(
         msg_id="m2",
         ts="t",
-        sender="skippy",
+        sender="wren",
         role="worker",
         lanes=("inbox",),
         seq=0,
@@ -220,7 +220,7 @@ def test_malformed_payload_fails_loud(corrupt: dict[str, object]) -> None:
     bad = Envelope.new(
         msg_id="m",
         ts="t",
-        sender="bilby",
+        sender="finch",
         kind="heartbeat",
         payload={**env.payload, **corrupt},
     )
@@ -230,8 +230,8 @@ def test_malformed_payload_fails_loud(corrupt: dict[str, object]) -> None:
 
 def test_wildcard_subject_matches_per_agent_form() -> None:
     """The consumer wildcard and the emitter subject agree token-for-token."""
-    concrete = subjects.agent_heartbeat("dev", "bilby")
+    concrete = subjects.agent_heartbeat("dev", "finch")
     wild = subjects.agent_heartbeat_wildcard("dev")
     assert concrete.split(".")[:-1] == wild.split(".")[:-1]
     assert wild.endswith(".*")
-    assert concrete == "dev.agent.heartbeat.bilby"
+    assert concrete == "dev.agent.heartbeat.finch"

@@ -21,9 +21,9 @@
 #   1  endpoint reachable but >=1 agent NOT connected -> FAIL (real regression)
 #
 # Host table (confirm live before deploy — tables drift):
-#   Bilby  bilby-host   (worker)
-#   Skippy skippy-host   (worker)
-#   Nagatha nagatha-host  (manager)
+#   Finch  finch-host   (worker)
+#   Wren wren-host   (worker)
+#   Heron heron-host  (manager)
 set -uo pipefail
 
 # Monitoring endpoint: NATS exposes /connz on its HTTP monitor port. On fleet-hub
@@ -32,7 +32,7 @@ set -uo pipefail
 # 8222 gets HTTP 400 "Bad Request" from the ws handshake, which curl -f treats
 # as failure -> a permanent false SKIP. Verified live on the host 2026-07-07.
 NATS_MONITOR_URL="${FLEET_NATS_MONITOR_URL:-http://192.0.2.74:8223}"
-AGENTS=(bilby skippy nagatha)
+AGENTS=(finch wren heron)
 
 echo "probe-trio-subscribers: querying ${NATS_MONITOR_URL}/connz"
 

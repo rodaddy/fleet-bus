@@ -27,7 +27,7 @@ class _RecordingBus:
 
 def _heartbeat(
     *,
-    agent_id: str = "bilby",
+    agent_id: str = "finch",
     seq: int = 1,
     last_turn_ts: str | None = "2026-07-08T00:00:01Z",
     catalog_version: int | None = None,
@@ -49,11 +49,11 @@ def test_observe_records_per_agent_view_and_effective_topology() -> None:
     beat = tracker.observe(_heartbeat(), now=10.0)
 
     assert beat is not None
-    assert tracker.view("bilby") is not None
-    assert tracker.is_stale("bilby", now=39.0, interval_s=10.0, missed=3) is False
+    assert tracker.view("finch") is not None
+    assert tracker.is_stale("finch", now=39.0, interval_s=10.0, missed=3) is False
     topology = tracker.effective_topology(now=39.0, interval_s=10.0, missed=3)
     assert topology == {
-        "bilby": {
+        "finch": {
             "connected": True,
             "role": "worker",
             "lanes": ["dispatch", "relay", "wake", "inbox"],
@@ -71,9 +71,9 @@ def test_staleness_is_false_at_threshold_and_true_after_n_missed_intervals() -> 
     tracker = LivenessTracker()
     tracker.observe(_heartbeat(last_turn_ts=None), now=100.0)
 
-    assert tracker.is_stale("bilby", now=130.0, interval_s=10.0, missed=3) is False
-    assert tracker.is_stale("bilby", now=130.001, interval_s=10.0, missed=3) is True
-    assert tracker.effective_topology(now=130.001, interval_s=10.0, missed=3)["bilby"] == {
+    assert tracker.is_stale("finch", now=130.0, interval_s=10.0, missed=3) is False
+    assert tracker.is_stale("finch", now=130.001, interval_s=10.0, missed=3) is True
+    assert tracker.effective_topology(now=130.001, interval_s=10.0, missed=3)["finch"] == {
         "connected": False,
         "role": "worker",
         "lanes": ["dispatch", "relay", "wake", "inbox"],
@@ -88,11 +88,11 @@ def test_staleness_is_false_at_threshold_and_true_after_n_missed_intervals() -> 
 
 def test_malformed_heartbeat_is_logged_and_not_counted() -> None:
     tracker = LivenessTracker()
-    malformed = Envelope.new(msg_id="bad", ts="t", sender="bilby", kind="status", payload={})
+    malformed = Envelope.new(msg_id="bad", ts="t", sender="finch", kind="status", payload={})
 
     assert tracker.observe(malformed, now=1.0) is None
-    assert tracker.view("bilby") is None
-    assert tracker.is_stale("bilby", now=1.0, interval_s=10.0) is None
+    assert tracker.view("finch") is None
+    assert tracker.is_stale("finch", now=1.0, interval_s=10.0) is None
 
 
 def test_tracker_keys_by_subject_slug_normalization() -> None:
@@ -120,7 +120,7 @@ def test_seq_reset_is_accepted_as_a_fresh_beat() -> None:
     tracker.observe(_heartbeat(seq=5), now=10.0)
     tracker.observe(_heartbeat(seq=1), now=11.0)
 
-    view = tracker.view("bilby")
+    view = tracker.view("finch")
     assert view is not None
     assert view.beat.seq == 1
     assert view.last_seen == 11.0
@@ -130,9 +130,9 @@ def test_effective_topology_surfaces_catalog_version() -> None:
     """Version skew is observable on the bus (#103): the version each agent
     connected with appears in the topology snapshot operators read."""
     tracker = LivenessTracker()
-    tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
+    tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
     topo = tracker.effective_topology(now=11.0, interval_s=10.0)
-    assert topo["bilby"]["catalog_version"] == 7
+    assert topo["finch"]["catalog_version"] == 7
 
 
 def test_version_skew_across_agents_logs_a_warning() -> None:
@@ -148,8 +148,8 @@ def test_version_skew_across_agents_logs_a_warning() -> None:
     )
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
-        tracker.observe(_heartbeat(agent_id="skippy", catalog_version=6), now=11.0)
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
+        tracker.observe(_heartbeat(agent_id="wren", catalog_version=6), now=11.0)
         assert any(
             level == "WARNING" and "VERSION SKEW" in message for level, message in records
         ), records
@@ -168,8 +168,8 @@ def test_matching_versions_do_not_warn() -> None:
     )
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
-        tracker.observe(_heartbeat(agent_id="skippy", catalog_version=7), now=11.0)
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
+        tracker.observe(_heartbeat(agent_id="wren", catalog_version=7), now=11.0)
         assert not any("VERSION SKEW" in message for _, message in records), records
     finally:
         logger.remove(sink_id)
@@ -199,12 +199,12 @@ def test_sustained_skew_warns_once_not_per_beat() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
-        # skippy on v6 diverges: ONE warning. Then many more beats at the SAME
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
+        # wren on v6 diverges: ONE warning. Then many more beats at the SAME
         # skew-set must NOT re-warn.
         for i, now in enumerate((11.0, 12.0, 13.0, 14.0, 15.0)):
-            agent = "skippy" if i % 2 == 0 else "bilby"
-            version = 6 if agent == "skippy" else 7
+            agent = "wren" if i % 2 == 0 else "finch"
+            version = 6 if agent == "wren" else 7
             tracker.observe(
                 _heartbeat(agent_id=agent, seq=10 + i, catalog_version=version), now=now
             )
@@ -221,13 +221,13 @@ def test_skew_re_warns_on_a_new_divergent_version_then_stays_quiet() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
-        tracker.observe(_heartbeat(agent_id="skippy", catalog_version=6), now=11.0)  # warn 1
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
+        tracker.observe(_heartbeat(agent_id="wren", catalog_version=6), now=11.0)  # warn 1
         # A THIRD agent introduces version 5 — a NEW skew-set → warn again.
-        tracker.observe(_heartbeat(agent_id="nagatha", catalog_version=5), now=12.0)  # warn 2
+        tracker.observe(_heartbeat(agent_id="heron", catalog_version=5), now=12.0)  # warn 2
         # Re-beat the same three: same skew-set → no more warnings.
-        tracker.observe(_heartbeat(agent_id="bilby", seq=2, catalog_version=7), now=13.0)
-        tracker.observe(_heartbeat(agent_id="skippy", seq=2, catalog_version=6), now=14.0)
+        tracker.observe(_heartbeat(agent_id="finch", seq=2, catalog_version=7), now=13.0)
+        tracker.observe(_heartbeat(agent_id="wren", seq=2, catalog_version=6), now=14.0)
         assert len(_skew_warnings(records)) == 2, records
     finally:
         logger.remove(sink_id)
@@ -243,27 +243,27 @@ def test_return_to_consensus_then_new_version_re_arms_the_skew_warning() -> None
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
-        tracker.observe(_heartbeat(agent_id="skippy", catalog_version=6), now=11.0)  # warn 1
-        # skippy upgrades to 7 → consensus (one version) → skew marker clears.
-        tracker.observe(_heartbeat(agent_id="skippy", seq=2, catalog_version=7), now=12.0)
-        # A fresh divergence at a NEW version (skippy has never been warned at 5)
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
+        tracker.observe(_heartbeat(agent_id="wren", catalog_version=6), now=11.0)  # warn 1
+        # wren upgrades to 7 → consensus (one version) → skew marker clears.
+        tracker.observe(_heartbeat(agent_id="wren", seq=2, catalog_version=7), now=12.0)
+        # A fresh divergence at a NEW version (wren has never been warned at 5)
         # after consensus must warn again.
-        tracker.observe(_heartbeat(agent_id="skippy", seq=3, catalog_version=5), now=13.0)  # warn 2
+        tracker.observe(_heartbeat(agent_id="wren", seq=3, catalog_version=5), now=13.0)  # warn 2
         assert len(_skew_warnings(records)) == 2, records
     finally:
         logger.remove(sink_id)
 
 
 def test_flapping_through_the_anchor_re_warns_each_re_divergence() -> None:
-    """An emitter flapping THROUGH the anchor value (6↔7 while bilby=7) hits
+    """An emitter flapping THROUGH the anchor value (6↔7 while finch=7) hits
     consensus (single version = 7) on every 7-beat. Terminal finding F4 requires
     the per-agent warned-version dedup to CLEAR on convergence so a later renewed
     skew warns again — which necessarily means each re-divergence back to 6 after
     a consensus-touch re-warns.
 
     This SUPERSEDES the earlier once-per-distinct-value flap bound for the
-    through-anchor case (the old contract kept 6 in skippy's warned set forever
+    through-anchor case (the old contract kept 6 in wren's warned set forever
     and stayed silent). The tradeoff is accepted deliberately: a genuinely
     renewed skew after the fleet went uniform MUST be visible, and an agent that
     keeps dipping to consensus and re-diverging IS repeatedly renewing a skew.
@@ -275,12 +275,12 @@ def test_flapping_through_the_anchor_re_warns_each_re_divergence() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
-        # skippy flaps 6,7,6,7,6,7. Each 6 diverges from bilby's 7 (warn); each 7
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
+        # wren flaps 6,7,6,7,6,7. Each 6 diverges from finch's 7 (warn); each 7
         # is consensus (dedup clears). Three 6-beats → three warnings.
         for i, version in enumerate((6, 7, 6, 7, 6, 7)):
             tracker.observe(
-                _heartbeat(agent_id="skippy", seq=2 + i, catalog_version=version),
+                _heartbeat(agent_id="wren", seq=2 + i, catalog_version=version),
                 now=11.0 + i,
             )
         assert len(_skew_warnings(records)) == 3, records
@@ -290,7 +290,7 @@ def test_flapping_through_the_anchor_re_warns_each_re_divergence() -> None:
 
 def test_flap_between_two_distinct_skewing_values_is_bounded_to_two() -> None:
     """Regression (#103 P3): an emitter flapping between TWO DISTINCT values that
-    BOTH skew against an anchor (skippy 6↔5 while bilby stays 7 — 6≠7 AND 5≠7, so
+    BOTH skew against an anchor (wren 6↔5 while finch stays 7 — 6≠7 AND 5≠7, so
     NEITHER flip is consensus) must warn at most TWICE total (once per distinct
     value), NOT once per beat.
 
@@ -304,24 +304,24 @@ def test_flap_between_two_distinct_skewing_values_is_bounded_to_two() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
-        # skippy flaps 6,5,6,5,6,5,6,5 — every value skews vs bilby's anchored 7,
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
+        # wren flaps 6,5,6,5,6,5,6,5 — every value skews vs finch's anchored 7,
         # so there is NO consensus dip. Only the FIRST 6 and the FIRST 5 are new
-        # distinct divergent values; every later flip is a value skippy was already
+        # distinct divergent values; every later flip is a value wren was already
         # warned at → silent. Two warnings total, not eight.
         now = 11.0
         for i in range(8):
             version = 6 if i % 2 == 0 else 5
             tracker.observe(
-                _heartbeat(agent_id="skippy", seq=2 + i, catalog_version=version), now=now
+                _heartbeat(agent_id="wren", seq=2 + i, catalog_version=version), now=now
             )
-            # keep bilby fresh so it never goes stale and drops from the compare
+            # keep finch fresh so it never goes stale and drops from the compare
             now += 0.5
-            tracker.observe(_heartbeat(agent_id="bilby", seq=2 + i, catalog_version=7), now=now)
+            tracker.observe(_heartbeat(agent_id="finch", seq=2 + i, catalog_version=7), now=now)
             now += 0.5
         assert len(_skew_warnings(records)) == 2, records
         # A genuinely-new THIRD distinct skewing value warns exactly once more.
-        tracker.observe(_heartbeat(agent_id="skippy", seq=99, catalog_version=4), now=now)
+        tracker.observe(_heartbeat(agent_id="wren", seq=99, catalog_version=4), now=now)
         assert len(_skew_warnings(records)) == 3, records
     finally:
         logger.remove(sink_id)
@@ -335,17 +335,17 @@ def test_skew_ignores_stale_dead_agents_ghost_version() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        # bilby beats v6 at t=10 then goes silent (dies).
+        # finch beats v6 at t=10 then goes silent (dies).
         tracker.observe(
-            _heartbeat(agent_id="bilby", catalog_version=6),
+            _heartbeat(agent_id="finch", catalog_version=6),
             now=10.0,
             interval_s=10.0,
             missed=3,
         )
-        # Much later, skippy beats v7. bilby is now stale (>3*10s since its beat),
-        # so its ghost v6 must be excluded — the LIVE fleet is uniform (just skippy).
+        # Much later, wren beats v7. finch is now stale (>3*10s since its beat),
+        # so its ghost v6 must be excluded — the LIVE fleet is uniform (just wren).
         tracker.observe(
-            _heartbeat(agent_id="skippy", catalog_version=7),
+            _heartbeat(agent_id="wren", catalog_version=7),
             now=100.0,
             interval_s=10.0,
             missed=3,
@@ -363,8 +363,8 @@ def test_skew_does_not_self_trigger_on_a_lone_agent_bump() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", seq=1, catalog_version=6), now=10.0)
-        tracker.observe(_heartbeat(agent_id="bilby", seq=2, catalog_version=7), now=11.0)
+        tracker.observe(_heartbeat(agent_id="finch", seq=1, catalog_version=6), now=10.0)
+        tracker.observe(_heartbeat(agent_id="finch", seq=2, catalog_version=7), now=11.0)
         assert _skew_warnings(records) == [], records
     finally:
         logger.remove(sink_id)
@@ -380,8 +380,8 @@ def test_skew_none_and_int_coexist_no_false_skew_either_ordering() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
-        tracker.observe(_heartbeat(agent_id="skippy", catalog_version=None), now=11.0)
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
+        tracker.observe(_heartbeat(agent_id="wren", catalog_version=None), now=11.0)
         assert _skew_warnings(records) == [], records
     finally:
         logger.remove(sink_id)
@@ -390,8 +390,8 @@ def test_skew_none_and_int_coexist_no_false_skew_either_ordering() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=None), now=10.0)
-        tracker.observe(_heartbeat(agent_id="skippy", catalog_version=7), now=11.0)
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=None), now=10.0)
+        tracker.observe(_heartbeat(agent_id="wren", catalog_version=7), now=11.0)
         assert _skew_warnings(records) == [], records
     finally:
         logger.remove(sink_id)
@@ -412,9 +412,9 @@ def test_coverage_incomplete_signal_fires_for_none_plus_versioned_fleet() -> Non
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0, interval_s=10.0)
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0, interval_s=10.0)
         tracker.observe(
-            _heartbeat(agent_id="skippy", catalog_version=None), now=11.0, interval_s=10.0
+            _heartbeat(agent_id="wren", catalog_version=None), now=11.0, interval_s=10.0
         )
         assert _skew_warnings(records) == [], records  # NOT a version skew
         assert len(_coverage_warnings(records)) == 1, records  # but coverage IS incomplete
@@ -426,9 +426,9 @@ def test_coverage_incomplete_signal_fires_for_none_plus_versioned_fleet() -> Non
     try:
         tracker = LivenessTracker()
         tracker.observe(
-            _heartbeat(agent_id="bilby", catalog_version=None), now=10.0, interval_s=10.0
+            _heartbeat(agent_id="finch", catalog_version=None), now=10.0, interval_s=10.0
         )
-        tracker.observe(_heartbeat(agent_id="skippy", catalog_version=7), now=11.0, interval_s=10.0)
+        tracker.observe(_heartbeat(agent_id="wren", catalog_version=7), now=11.0, interval_s=10.0)
         assert _skew_warnings(records) == [], records
         assert len(_coverage_warnings(records)) == 1, records
     finally:
@@ -444,22 +444,22 @@ def test_coverage_incomplete_signal_is_deduped_then_re_arms() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0, interval_s=10.0)
-        # skippy beats None twice: ONE coverage warning, not per beat.
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0, interval_s=10.0)
+        # wren beats None twice: ONE coverage warning, not per beat.
         tracker.observe(
-            _heartbeat(agent_id="skippy", seq=1, catalog_version=None), now=11.0, interval_s=10.0
+            _heartbeat(agent_id="wren", seq=1, catalog_version=None), now=11.0, interval_s=10.0
         )
         tracker.observe(
-            _heartbeat(agent_id="skippy", seq=2, catalog_version=None), now=12.0, interval_s=10.0
+            _heartbeat(agent_id="wren", seq=2, catalog_version=None), now=12.0, interval_s=10.0
         )
         assert len(_coverage_warnings(records)) == 1, records
-        # skippy upgrades to a version → coverage now complete → marker re-arms.
+        # wren upgrades to a version → coverage now complete → marker re-arms.
         tracker.observe(
-            _heartbeat(agent_id="skippy", seq=3, catalog_version=7), now=13.0, interval_s=10.0
+            _heartbeat(agent_id="wren", seq=3, catalog_version=7), now=13.0, interval_s=10.0
         )
         # A NEW pre-#103 agent appears → coverage incomplete again → re-announce.
         tracker.observe(
-            _heartbeat(agent_id="nagatha", catalog_version=None), now=14.0, interval_s=10.0
+            _heartbeat(agent_id="heron", catalog_version=None), now=14.0, interval_s=10.0
         )
         assert len(_coverage_warnings(records)) == 2, records
     finally:
@@ -474,8 +474,8 @@ def test_no_coverage_signal_when_every_live_agent_carries_a_version() -> None:
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0, interval_s=10.0)
-        tracker.observe(_heartbeat(agent_id="skippy", catalog_version=6), now=11.0, interval_s=10.0)
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0, interval_s=10.0)
+        tracker.observe(_heartbeat(agent_id="wren", catalog_version=6), now=11.0, interval_s=10.0)
         assert _coverage_warnings(records) == [], records
         assert len(_skew_warnings(records)) == 1, records  # a real version skew instead
     finally:
@@ -488,7 +488,7 @@ async def test_heartbeat_contract_real_emitter_real_consumer_one_bus() -> None:
     times = iter(["2026-07-08T00:00:00Z"])
     emitter = HeartbeatEmitter(
         bus,
-        agent_id="skippy",
+        agent_id="wren",
         env="dev",
         role="worker",
         lanes=("dispatch", "relay", "wake", "inbox"),
@@ -499,10 +499,10 @@ async def test_heartbeat_contract_real_emitter_real_consumer_one_bus() -> None:
 
     await emitter.beat()
     subject, envelope = bus.published[0]
-    assert subject == subjects.agent_heartbeat("dev", "skippy")
+    assert subject == subjects.agent_heartbeat("dev", "wren")
     assert tracker.observe(envelope, now=5.0) is not None
     assert tracker.effective_topology(now=5.0, interval_s=30.0) == {
-        "skippy": {
+        "wren": {
             "connected": True,
             "role": "worker",
             "lanes": ["dispatch", "relay", "wake", "inbox"],
@@ -525,8 +525,8 @@ async def test_watch_heartbeats_subscribes_wildcard_and_feeds_tracker() -> None:
     subject, handler = bus.subscriptions[0]
     assert subject == subjects.agent_heartbeat_wildcard("dev")
 
-    await handler(_heartbeat(agent_id="nagatha", seq=2))
-    view = tracker.view("nagatha")
+    await handler(_heartbeat(agent_id="heron", seq=2))
+    view = tracker.view("heron")
     assert view is not None
     assert view.last_seen == 42.0
     assert view.beat.seq == 2
@@ -538,23 +538,23 @@ def test_convergence_clears_dedup_so_a_renewed_same_value_skew_re_warns() -> Non
     at pre-convergence warns AGAIN — not silent forever.
 
     This is the case the pre-existing flap bound (P3) deliberately suppressed:
-    without the convergence-clear, ``skippy@6`` warns once, and after skippy
+    without the convergence-clear, ``wren@6`` warns once, and after wren
     upgrades to 7 (consensus) and LATER regresses to 6, the old dedup kept 6 in
-    skippy's warned set and stayed silent — masking a genuine renewed skew."""
+    wren's warned set and stayed silent — masking a genuine renewed skew."""
     from loguru import logger
 
     records, sink_id = _skew_sink()
     try:
         tracker = LivenessTracker()
-        tracker.observe(_heartbeat(agent_id="bilby", catalog_version=7), now=10.0)
-        tracker.observe(_heartbeat(agent_id="skippy", catalog_version=6), now=11.0)  # warn 1
-        # Fleet converges: skippy upgrades to 7 (single version → consensus).
-        tracker.observe(_heartbeat(agent_id="skippy", seq=2, catalog_version=7), now=12.0)
-        # keep bilby fresh so it stays in the compare.
-        tracker.observe(_heartbeat(agent_id="bilby", seq=2, catalog_version=7), now=13.0)
-        # LATER, skippy regresses to the SAME value (6) it was warned at before.
+        tracker.observe(_heartbeat(agent_id="finch", catalog_version=7), now=10.0)
+        tracker.observe(_heartbeat(agent_id="wren", catalog_version=6), now=11.0)  # warn 1
+        # Fleet converges: wren upgrades to 7 (single version → consensus).
+        tracker.observe(_heartbeat(agent_id="wren", seq=2, catalog_version=7), now=12.0)
+        # keep finch fresh so it stays in the compare.
+        tracker.observe(_heartbeat(agent_id="finch", seq=2, catalog_version=7), now=13.0)
+        # LATER, wren regresses to the SAME value (6) it was warned at before.
         # Post-convergence the dedup is clear → this renewed skew warns AGAIN.
-        tracker.observe(_heartbeat(agent_id="skippy", seq=3, catalog_version=6), now=14.0)  # warn 2
+        tracker.observe(_heartbeat(agent_id="wren", seq=3, catalog_version=6), now=14.0)  # warn 2
         assert len(_skew_warnings(records)) == 2, records
     finally:
         logger.remove(sink_id)

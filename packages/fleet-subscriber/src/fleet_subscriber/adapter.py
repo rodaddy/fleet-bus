@@ -255,7 +255,7 @@ def build_adapter_class(api: GatewayApi) -> type[Any]:
             # below and takes the mirror from "one room" to "no room" on the
             # next gateway restart. ``agent_id`` is required env, so it is always
             # present, and an agent's home channel is its own name by convention
-            # (skippy -> #skippy). Verified against the running skippy/bilby
+            # (wren -> #wren). Verified against the running wren/finch
             # gateways: both have FLEET_VOICE_TEE_ENABLED and
             # FLEET_VOICE_TEE_CHANNEL_ID, neither has FLEET_CHANNEL_MAP.
             self._home_channel = getattr(config, "home_channel", None) or self._bus_config.agent_id

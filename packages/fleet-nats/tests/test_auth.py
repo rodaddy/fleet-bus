@@ -44,7 +44,7 @@ def creds_path(tmp_path: Path) -> str:
     design) fails loud. Contents are irrelevant off-network — nats-py never
     opens it in these stubbed connects. This must NOT be a real credential.
     """
-    p = tmp_path / "agent-nagatha.creds"
+    p = tmp_path / "agent-heron.creds"
     p.write_text("-- NOT A REAL CREDENTIAL --\n")
     return str(p)
 
@@ -53,19 +53,19 @@ def creds_path(tmp_path: Path) -> str:
 
 
 def test_credential_source_none_by_default() -> None:
-    cfg = BusConfig(agent_id="nagatha")
+    cfg = BusConfig(agent_id="heron")
     assert cfg.credential_source is CredentialSource.NONE
     assert cfg.auth_credentials() == AuthCredentials()
 
 
 def test_credential_source_user_password() -> None:
-    cfg = BusConfig(agent_id="nagatha", nats_user="nagatha", nats_password=_SECRET_PASSWORD)
+    cfg = BusConfig(agent_id="heron", nats_user="heron", nats_password=_SECRET_PASSWORD)
     assert cfg.credential_source is CredentialSource.USER_PASSWORD
-    assert cfg.auth_credentials() == AuthCredentials(user="nagatha", password=_SECRET_PASSWORD)
+    assert cfg.auth_credentials() == AuthCredentials(user="heron", password=_SECRET_PASSWORD)
 
 
 def test_credential_source_creds_file(creds_path: str) -> None:
-    cfg = BusConfig(agent_id="nagatha", nats_creds_file=creds_path)
+    cfg = BusConfig(agent_id="heron", nats_creds_file=creds_path)
     assert cfg.credential_source is CredentialSource.CREDS_FILE
     assert cfg.auth_credentials() == AuthCredentials(user_credentials=creds_path)
 
@@ -74,8 +74,8 @@ def test_creds_file_wins_over_user_password(creds_path: str) -> None:
     # A deployment with a .creds file must not silently downgrade to a shared
     # user/password if both are somehow present.
     cfg = BusConfig(
-        agent_id="nagatha",
-        nats_user="nagatha",
+        agent_id="heron",
+        nats_user="heron",
         nats_password=_SECRET_PASSWORD,
         nats_creds_file=creds_path,
     )
@@ -85,29 +85,29 @@ def test_creds_file_wins_over_user_password(creds_path: str) -> None:
 
 def test_user_without_password_fails_loud() -> None:
     with pytest.raises(ValueError, match="both nats_user and nats_password"):
-        BusConfig(agent_id="nagatha", nats_user="nagatha")
+        BusConfig(agent_id="heron", nats_user="heron")
 
 
 def test_password_without_user_fails_loud() -> None:
     with pytest.raises(ValueError, match="both nats_user and nats_password"):
-        BusConfig(agent_id="nagatha", nats_password=_SECRET_PASSWORD)
+        BusConfig(agent_id="heron", nats_password=_SECRET_PASSWORD)
 
 
 # ---- config: from_env wiring + empty-value normalisation -----------------
 
 
 def test_from_env_reads_user_password(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FLEET_NATS_USER", "bilby")
+    monkeypatch.setenv("FLEET_NATS_USER", "finch")
     monkeypatch.setenv("FLEET_NATS_PASSWORD", _SECRET_PASSWORD)
-    cfg = BusConfig.from_env("bilby")
+    cfg = BusConfig.from_env("finch")
     assert cfg.credential_source is CredentialSource.USER_PASSWORD
-    assert cfg.nats_user == "bilby"
+    assert cfg.nats_user == "finch"
     assert cfg.nats_password == _SECRET_PASSWORD
 
 
 def test_from_env_reads_creds_file(monkeypatch: pytest.MonkeyPatch, creds_path: str) -> None:
     monkeypatch.setenv("FLEET_NATS_CREDS", creds_path)
-    cfg = BusConfig.from_env("bilby")
+    cfg = BusConfig.from_env("finch")
     assert cfg.credential_source is CredentialSource.CREDS_FILE
     assert cfg.nats_creds_file == creds_path
 
@@ -115,7 +115,7 @@ def test_from_env_reads_creds_file(monkeypatch: pytest.MonkeyPatch, creds_path: 
 def test_from_env_absent_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
     for var in ("FLEET_NATS_USER", "FLEET_NATS_PASSWORD", "FLEET_NATS_CREDS"):
         monkeypatch.delenv(var, raising=False)
-    cfg = BusConfig.from_env("bilby")
+    cfg = BusConfig.from_env("finch")
     assert cfg.credential_source is CredentialSource.NONE
 
 
@@ -125,7 +125,7 @@ def test_from_env_blank_export_normalises_to_none(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setenv("FLEET_NATS_USER", "")
     monkeypatch.setenv("FLEET_NATS_PASSWORD", "   ")
     monkeypatch.setenv("FLEET_NATS_CREDS", "")
-    cfg = BusConfig.from_env("bilby")
+    cfg = BusConfig.from_env("finch")
     assert cfg.credential_source is CredentialSource.NONE
 
 
@@ -161,11 +161,11 @@ def _patched_bus(monkeypatch: pytest.MonkeyPatch) -> type[_CapturingNATS]:
 async def test_connect_passes_user_password_kwargs(
     _patched_bus: type[_CapturingNATS],
 ) -> None:
-    cfg = BusConfig(agent_id="nagatha", nats_user="nagatha", nats_password=_SECRET_PASSWORD)
+    cfg = BusConfig(agent_id="heron", nats_user="heron", nats_password=_SECRET_PASSWORD)
     bus = FleetBus(cfg)
     await bus.connect()
     nc: _CapturingNATS = bus._nc  # type: ignore[assignment]
-    assert nc.connect_kwargs["user"] == "nagatha"
+    assert nc.connect_kwargs["user"] == "heron"
     assert nc.connect_kwargs["password"] == _SECRET_PASSWORD
     # creds-file arg is passed as None (nats-py treats None as "not provided").
     assert nc.connect_kwargs["user_credentials"] is None
@@ -175,7 +175,7 @@ async def test_connect_passes_creds_file_kwarg(
     _patched_bus: type[_CapturingNATS],
     creds_path: str,
 ) -> None:
-    cfg = BusConfig(agent_id="nagatha", nats_creds_file=creds_path)
+    cfg = BusConfig(agent_id="heron", nats_creds_file=creds_path)
     bus = FleetBus(cfg)
     await bus.connect()
     nc: _CapturingNATS = bus._nc  # type: ignore[assignment]
@@ -189,7 +189,7 @@ async def test_connect_no_creds_passes_no_auth_kwargs(
 ) -> None:
     # Absence path: current behaviour preserved — every auth arg is None, which
     # nats-py treats as "not provided" (i.e. an anonymous connect).
-    cfg = BusConfig(agent_id="nagatha")
+    cfg = BusConfig(agent_id="heron")
     bus = FleetBus(cfg)
     await bus.connect()
     nc: _CapturingNATS = bus._nc  # type: ignore[assignment]
@@ -211,8 +211,8 @@ async def test_connect_never_logs_credential_values(
     sink_id = logger.add(lambda message: captured.append(str(message)), level="DEBUG")
     try:
         cfg = BusConfig(
-            agent_id="nagatha",
-            nats_user="nagatha",
+            agent_id="heron",
+            nats_user="heron",
             nats_password=_SECRET_PASSWORD,
             nats_creds_file=creds_path,
         )
@@ -239,7 +239,7 @@ async def test_connect_without_creds_warns_loudly(
         level="DEBUG",
     )
     try:
-        bus = FleetBus(BusConfig(agent_id="nagatha"))
+        bus = FleetBus(BusConfig(agent_id="heron"))
         await bus.connect()
     finally:
         logger.remove(sink_id)
@@ -257,8 +257,8 @@ def test_repr_hides_password_and_creds_path(creds_path: str) -> None:
     mechanism is still auditable. This is the P1 blocker: the object's own repr
     was the leak, not the connect-path logging."""
     cfg = BusConfig(
-        agent_id="nagatha",
-        nats_user="nagatha",
+        agent_id="heron",
+        nats_user="heron",
         nats_password=_SECRET_PASSWORD,
         nats_creds_file=creds_path,
     )
@@ -275,9 +275,9 @@ def test_repr_hides_password_and_creds_path(creds_path: str) -> None:
 def test_repr_still_shows_nonsecret_fields() -> None:
     """The redaction is surgical: only the secret value + creds path drop out;
     ordinary fields (agent_id, url) remain in the repr for debuggability."""
-    cfg = BusConfig(agent_id="nagatha", nats_user="nagatha", nats_password=_SECRET_PASSWORD)
+    cfg = BusConfig(agent_id="heron", nats_user="heron", nats_password=_SECRET_PASSWORD)
     r = repr(cfg)
-    assert "nagatha" in r  # agent_id / user still visible
+    assert "heron" in r  # agent_id / user still visible
     assert _SECRET_PASSWORD not in r
     assert "nats://" in r  # url still visible
 
@@ -291,7 +291,7 @@ def test_missing_creds_file_fails_loud_naming_env_var(tmp_path: Path) -> None:
     the leak vector — the path encodes deploy layout / agent identity)."""
     missing = str(tmp_path / "does-not-exist.creds")
     with pytest.raises(ValueError, match="FLEET_NATS_CREDS") as excinfo:
-        BusConfig(agent_id="nagatha", nats_creds_file=missing)
+        BusConfig(agent_id="heron", nats_creds_file=missing)
     assert missing not in str(excinfo.value)
 
 
@@ -302,7 +302,7 @@ def test_unreadable_creds_file_fails_loud(tmp_path: Path) -> None:
     p.chmod(0o000)
     try:
         with pytest.raises(ValueError, match="FLEET_NATS_CREDS") as excinfo:
-            BusConfig(agent_id="nagatha", nats_creds_file=str(p))
+            BusConfig(agent_id="heron", nats_creds_file=str(p))
         assert str(p) not in str(excinfo.value)
     finally:
         p.chmod(0o600)  # restore so tmp cleanup can remove it
@@ -315,7 +315,7 @@ async def test_require_auth_no_creds_raises(
     _patched_bus: type[_CapturingNATS],
 ) -> None:
     """require_auth + no creds → hard error at connect (opt-in fail-closed)."""
-    bus = FleetBus(BusConfig(agent_id="nagatha", require_auth=True))
+    bus = FleetBus(BusConfig(agent_id="heron", require_auth=True))
     with pytest.raises(ValueError, match="FLEET_NATS_REQUIRE_AUTH"):
         await bus.connect()
 
@@ -325,16 +325,16 @@ async def test_no_require_auth_no_creds_warns_and_connects(
 ) -> None:
     """Default (require_auth unset) + no creds → warns + connects (today's
     permissive rollout behaviour, unchanged)."""
-    bus = FleetBus(BusConfig(agent_id="nagatha"))
+    bus = FleetBus(BusConfig(agent_id="heron"))
     await bus.connect()  # must not raise
     assert bus._nc.is_connected
 
 
 def test_require_auth_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FLEET_NATS_REQUIRE_AUTH", "1")
-    assert BusConfig.from_env("bilby").require_auth is True
+    assert BusConfig.from_env("finch").require_auth is True
     monkeypatch.setenv("FLEET_NATS_REQUIRE_AUTH", "false")
-    assert BusConfig.from_env("bilby").require_auth is False
+    assert BusConfig.from_env("finch").require_auth is False
 
 
 # ---- P3-C: both .creds and user/password set → visible override WARNING ----
@@ -351,8 +351,8 @@ async def test_both_creds_and_userpass_warns_override(
     )
     try:
         cfg = BusConfig(
-            agent_id="nagatha",
-            nats_user="nagatha",
+            agent_id="heron",
+            nats_user="heron",
             nats_password=_SECRET_PASSWORD,
             nats_creds_file=creds_path,
         )
@@ -415,7 +415,7 @@ async def test_anonymous_reject_infinite_retry_surfaces_as_actionable(
     secret-free ConnectionError instead of a misleading 'server unreachable'."""
     monkeypatch.setattr("fleet_nats.bus.NATS", _AuthRejectInfiniteRetryNATS)
     # connect_timeout_s=0 → budget=2s so the test does not wait the full window.
-    bus = FleetBus(BusConfig(agent_id="nagatha", connect_timeout_s=0))
+    bus = FleetBus(BusConfig(agent_id="heron", connect_timeout_s=0))
     with pytest.raises(ConnectionError, match="none configured") as excinfo:
         await bus.connect()
     msg = str(excinfo.value)
@@ -433,7 +433,7 @@ async def test_anonymous_reject_finite_reconnect_surfaces_as_actionable(
     violation on last_error; FleetBus recovers the real cause from last_error and
     raises the actionable ConnectionError (never a bare 'no servers')."""
     monkeypatch.setattr("fleet_nats.bus.NATS", _AuthRejectFiniteNATS)
-    bus = FleetBus(BusConfig(agent_id="nagatha", max_reconnect_attempts=3))
+    bus = FleetBus(BusConfig(agent_id="heron", max_reconnect_attempts=3))
     with pytest.raises(ConnectionError, match="none configured") as excinfo:
         await bus.connect()
     assert "FLEET_NATS_CREDS" in str(excinfo.value)
@@ -449,7 +449,7 @@ async def test_authed_reject_finite_reconnect_actionable_source(
     """When creds WERE presented and rejected, the message reports the source
     (creds-file) — never the value or path — not a 'none configured' message."""
     monkeypatch.setattr("fleet_nats.bus.NATS", _AuthRejectFiniteNATS)
-    bus = FleetBus(BusConfig(agent_id="nagatha", nats_creds_file=creds_path))
+    bus = FleetBus(BusConfig(agent_id="heron", nats_creds_file=creds_path))
     with pytest.raises(ConnectionError, match="refused this agent's credentials") as excinfo:
         await bus.connect()
     msg = str(excinfo.value)
@@ -469,7 +469,7 @@ async def test_non_auth_timeout_still_reports_unreachable(
             await asyncio.sleep(3600)  # last_error stays None
 
     monkeypatch.setattr("fleet_nats.bus.NATS", _HangNoError)
-    bus = FleetBus(BusConfig(agent_id="nagatha", connect_timeout_s=0))
+    bus = FleetBus(BusConfig(agent_id="heron", connect_timeout_s=0))
     with pytest.raises(TimeoutError, match="unreachable"):
         await bus.connect()
 
@@ -498,7 +498,7 @@ async def test_connect_creds_file_open_error_sanitizes_path(
     captured: list[str] = []
     sink_id = logger.add(lambda message: captured.append(str(message)), level="DEBUG")
     try:
-        bus = FleetBus(BusConfig(agent_id="nagatha", nats_creds_file=creds_path))
+        bus = FleetBus(BusConfig(agent_id="heron", nats_creds_file=creds_path))
         with pytest.raises(ConnectionError, match="FLEET_NATS_CREDS") as excinfo:
             await bus.connect()
     finally:
@@ -507,7 +507,7 @@ async def test_connect_creds_file_open_error_sanitizes_path(
     msg = str(excinfo.value)
     # Actionable: names the env var, the errno class, and the agent — never the path.
     assert "FLEET_NATS_CREDS" in msg
-    assert "nagatha" in msg
+    assert "heron" in msg
     assert "Permission denied" in msg
     assert creds_path not in msg
 

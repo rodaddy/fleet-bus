@@ -292,8 +292,8 @@ the full contract.
 
 ## 5. Per-agent enable + verification
 
-Enabling and verifying the subscriber across the trio (Nagatha the manager,
-Skippy and Bilby the workers) is a maintainer-gated, front-door deploy — see
+Enabling and verifying the subscriber across the trio (Heron the manager,
+Wren and Finch the workers) is a maintainer-gated, front-door deploy — see
 **[`runbook.md`](./runbook.md)** for the full procedure. Do not duplicate it. The
 operator-critical points it covers:
 
@@ -301,12 +301,12 @@ operator-critical points it covers:
   (`specs/probe-trio-subscribers.sh` against the NATS `/connz` monitor). A `SKIP`
   line is *not* acceptance — it means the monitor was unreachable.
 - **`allow_bots` is env-only and never `none`.** A worker needs at least
-  `mentions`; Nagatha may be `all`. It is set directly in the agent's environment,
+  `mentions`; Heron may be `all`. It is set directly in the agent's environment,
   never bridged from config, so a config restore can't silently drop it to `none`.
 - **Role-aware `FLEET_ROLE`.** `worker` (default, least-capable) subscribes the
   four work lanes; `manager` subscribes `inbox` only. An unset role fails *safe*
   (worker), a missing `FLEET_ROLE=manager` fails *silent* (wrong topology) — so
-  Nagatha's **effective** role is checked explicitly from her `connect` log.
+  Heron's **effective** role is checked explicitly from her `connect` log.
 
 ---
 
@@ -328,11 +328,11 @@ table). Each beat below names the subject and code that carries it.
 > a freshly-enabled subscriber runs on its own today.
 
 **Beat 0 — human post (Discord).** A human posts a task in a Discord channel:
-"Skippy and Bilby, ship the X change." This is the only human-authored moment.
+"Wren and Finch, ship the X change." This is the only human-authored moment.
 Discord is display; the human post is what *starts* coordination, but coordination
 itself now leaves Discord.
 
-**Beat 1 — dispatch (NATS control plane).** The manager (Nagatha) opens a
+**Beat 1 — dispatch (NATS control plane).** The manager (Heron) opens a
 `CoordinationSession` in state `DISPATCHED` for the task's k-board `task_id`,
 carrying the originating channel slug. A `DISPATCH` event runs through
 `next_action`: `DISPATCHED + DISPATCH → DISPATCH action, state WORKING`.
@@ -341,14 +341,14 @@ carrying the originating channel slug. A `DISPATCH` event runs through
 subscriber picks it up (`_on_envelope`), forges a `MessageEvent(internal=True)`
 (mention-gate + auth bypassed), and `handle_message` runs a full agent turn.
 
-**Beat 2 — working + the relay (NATS control plane).** Skippy finishes its turn
-and replies; the subscriber's `send()` publishes Skippy's own words on
+**Beat 2 — working + the relay (NATS control plane).** Wren finishes its turn
+and replies; the subscriber's `send()` publishes Wren's own words on
 `agent_status(env, task_id)`. The orchestrator's `watch_worker_status` receives it
-and runs `detect_missing_handoff` — and finds Skippy forgot to hand off to Bilby.
-This fires the **relay**: `HANDOFF_MISSING(relay_to=bilby)` →
+and runs `detect_missing_handoff` — and finds Wren forgot to hand off to Finch.
+This fires the **relay**: `HANDOFF_MISSING(relay_to=finch)` →
 `WORKING + HANDOFF_MISSING → RELAY action, state RELAY_NEEDED`.
-`Orchestrator._relay` publishes the missed context to `agent_relay(env, bilby)` —
-the human-replacement relay, no human in the loop. Bilby's subscriber receives the
+`Orchestrator._relay` publishes the missed context to `agent_relay(env, finch)` —
+the human-replacement relay, no human in the loop. Finch's subscriber receives the
 relay, runs its turn, and on `RELAY_SENT` the session returns to `WORKING`. (If a
 worker had instead asked the manager to decide something, this is where
 `ARBITRATE_REQUESTED` would move the session through `ARBITRATING` and back.)
@@ -540,7 +540,7 @@ names and fails the build if any appear).
 
 ## 9. Turn signals + scorekeeper (#17)
 
-Nagatha keeps score in real time as Skippy and Bilby work a topic, and on
+Heron keeps score in real time as Wren and Finch work a topic, and on
 non-convergence she decides. The orchestrator sees **all** turns on the shared
 bus, so the cross-agent count is real *here* in a way a single agent gate cannot
 achieve — a lone Hermes reflex (the agent runtime's turn-signal hook) sees only its own turns. All
@@ -645,7 +645,7 @@ scores cannot contaminate one another.
 
 ### The synthesis carve-out — an agent turn, NEVER gate logic
 
-`SYNTHESIZE` is **not** gate logic and does not rewrite worker output. Nagatha
+`SYNTHESIZE` is **not** gate logic and does not rewrite worker output. Heron
 arbitrates by *taking a turn*: `assign_synthesis(bus, session, env, new_id, now)`
 publishes a normal dispatch envelope carrying a **templated** instruction
 (ids/state-words only, no worker payload prose) to `agent_inbox(env, manager)` —

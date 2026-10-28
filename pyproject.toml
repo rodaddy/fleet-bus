@@ -4,7 +4,8 @@ version = "0.1.0"
 description = "Fleet message + coordination bus — canonical NATS transport and DAP coordination for the agent fleet, OB, and k-board."
 readme = "README.md"
 requires-python = ">=3.13"
-authors = [{ name = "Rico Rojas", email = "rickrojas@gmail.com" }]
+license = "MIT"
+authors = [{ name = "Rico Rojas", email = "rico@rtech-consulting.com" }]
 # The release builder installs this locked build backend before it installs the
 # four local packages with --no-build-isolation.  Keeping it in the root lock
 # closes the otherwise implicit build-time network-resolution path.

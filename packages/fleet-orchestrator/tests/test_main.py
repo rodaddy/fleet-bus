@@ -18,9 +18,9 @@ from fleet_orchestrator import __main__ as entry
 
 @pytest.fixture
 def _env(monkeypatch: Any) -> None:
-    monkeypatch.setenv("FLEET_MANAGER_ID", "nagatha")
-    monkeypatch.setenv("FLEET_WORKERS", "skippy,bilby")
-    monkeypatch.setenv("FLEET_AGENT_ID", "nagatha")
+    monkeypatch.setenv("FLEET_MANAGER_ID", "heron")
+    monkeypatch.setenv("FLEET_WORKERS", "wren,finch")
+    monkeypatch.setenv("FLEET_AGENT_ID", "heron")
     monkeypatch.delenv("FLEET_NATS_NAME", raising=False)
 
 

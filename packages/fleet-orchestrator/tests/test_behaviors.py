@@ -96,7 +96,7 @@ def _counter_clock() -> IdClock:
 
 
 def _orchestrator() -> tuple[Orchestrator, FakeBus]:
-    cfg = BusConfig(agent_id="nagatha", env="dev")
+    cfg = BusConfig(agent_id="heron", env="dev")
     bus = FakeBus(cfg)
     # FakeBus duck-types the subset of FleetBus the Orchestrator uses; the cast is
     # test-only wiring, not production code.
@@ -106,7 +106,7 @@ def _orchestrator() -> tuple[Orchestrator, FakeBus]:
 
 def _orchestrator_with_governor(governor: Any) -> tuple[Orchestrator, FakeBus]:
     """An Orchestrator wired with a governor (for the durable-persist tests)."""
-    cfg = BusConfig(agent_id="nagatha", env="dev")
+    cfg = BusConfig(agent_id="heron", env="dev")
     bus = FakeBus(cfg)
     orch = Orchestrator(bus, _counter_clock(), governor=governor)  # type: ignore[arg-type]
     return orch, bus
@@ -116,8 +116,8 @@ def _session(state: State = State.DISPATCHED) -> CoordinationSession:
     return CoordinationSession(
         task_id="t-1",
         channel="dash-dev",
-        manager="nagatha",
-        workers=("skippy", "bilby"),
+        manager="heron",
+        workers=("wren", "finch"),
         state=state,
     )
 
@@ -131,8 +131,8 @@ async def test_dispatch_fans_out_to_all_workers() -> None:
     assert len(bus.published) == 2
     dispatched_subjects = {s for s, _ in bus.published}
     assert dispatched_subjects == {
-        subjects.agent_dispatch("dev", "skippy", channel="dash-dev"),
-        subjects.agent_dispatch("dev", "bilby", channel="dash-dev"),
+        subjects.agent_dispatch("dev", "wren", channel="dash-dev"),
+        subjects.agent_dispatch("dev", "finch", channel="dash-dev"),
     }
 
 
@@ -142,64 +142,64 @@ async def test_dispatch_fanout_envelopes_carry_their_worker_in_to() -> None:
     orch, bus = _orchestrator()
     await orch.apply(_session(), Event(kind=EventKind.DISPATCH))
     to_by_subject = {s: env.to for s, env in bus.published}
-    assert to_by_subject[subjects.agent_dispatch("dev", "skippy", channel="dash-dev")] == "skippy"
-    assert to_by_subject[subjects.agent_dispatch("dev", "bilby", channel="dash-dev")] == "bilby"
+    assert to_by_subject[subjects.agent_dispatch("dev", "wren", channel="dash-dev")] == "wren"
+    assert to_by_subject[subjects.agent_dispatch("dev", "finch", channel="dash-dev")] == "finch"
 
 
 async def test_dispatch_to_single_worker_hint() -> None:
     orch, bus = _orchestrator()
-    await orch.dispatch_task(_session(), Event(kind=EventKind.DISPATCH), worker="skippy")
+    await orch.dispatch_task(_session(), Event(kind=EventKind.DISPATCH), worker="wren")
     assert len(bus.published) == 1
     subject, env = bus.published[0]
-    assert subject == subjects.agent_dispatch("dev", "skippy", channel="dash-dev")
-    assert env.to == "skippy"
+    assert subject == subjects.agent_dispatch("dev", "wren", channel="dash-dev")
+    assert env.to == "wren"
 
 
 async def test_relay_publishes_to_missed_peer() -> None:
     orch, bus = _orchestrator()
     event = Event(
         kind=EventKind.HANDOFF_MISSING,
-        actor="skippy",
-        relay_to="bilby",
-        context={"text": "skippy finished but never handed off"},
+        actor="wren",
+        relay_to="finch",
+        context={"text": "wren finished but never handed off"},
     )
     action = await orch.apply(_session(State.WORKING), event)
     assert action.kind is ActionKind.RELAY
     assert len(bus.published) == 1
     subject, env = bus.published[0]
     # Per-channel (#117), mirroring dispatch: the session's channel scopes the relay.
-    assert subject == subjects.agent_relay("dev", "bilby", channel="dash-dev")
-    assert env.to == "bilby"
-    assert env.payload["text"] == "skippy finished but never handed off"
+    assert subject == subjects.agent_relay("dev", "finch", channel="dash-dev")
+    assert env.to == "finch"
+    assert env.payload["text"] == "wren finished but never handed off"
 
 
 async def test_wake_publishes_to_target() -> None:
     orch, bus = _orchestrator()
     # Wake is a manager-invoked behavior (no state transition), driven via the
     # public wake_worker() API — not a hand-built private call.
-    await orch.wake_worker(_session(State.WORKING), "skippy")
+    await orch.wake_worker(_session(State.WORKING), "wren")
     assert len(bus.published) == 1
     subject, env = bus.published[0]
-    assert subject == subjects.agent_wake("dev", "skippy", channel="dash-dev")
-    assert env.to == "skippy"
+    assert subject == subjects.agent_wake("dev", "wren", channel="dash-dev")
+    assert env.to == "wren"
     assert env.kind == "wake"
 
 
 async def test_arbitrate_request_gets_deterministic_reply() -> None:
     orch, bus = _orchestrator()
-    sub = await orch.serve_arbitration("who-goes-first", ("skippy", "bilby"))
+    sub = await orch.serve_arbitration("who-goes-first", ("wren", "finch"))
     assert sub is not None
     subject = subjects.agent_arbitrate("dev", "who-goes-first")
     handler = bus.raw_handlers[subject]
 
     request = Envelope.new(
-        msg_id="q1", ts="t", sender="skippy", kind="arbitrate", topic="who-goes-first"
+        msg_id="q1", ts="t", sender="wren", kind="arbitrate", topic="who-goes-first"
     )
     msg = FakeMsg(data=request.to_bytes(), reply="_INBOX.reply")
     await handler(msg)
 
     assert msg.replied is not None
-    assert msg.replied.payload["decision"] == "bilby"
+    assert msg.replied.payload["decision"] == "finch"
     assert msg.replied.correlation_id == "q1"
 
 
@@ -221,15 +221,15 @@ async def test_watch_status_fires_relay_on_missing_handoff() -> None:
     status = Envelope.new(
         msg_id="s1",
         ts="t",
-        sender="skippy",
+        sender="wren",
         kind="status",
         task_id="t-1",
-        payload={"text": "I finished my part."},  # no @bilby mention
+        payload={"text": "I finished my part."},  # no @finch mention
     )
     await handler(status)
 
     # A relay was published to the un-mentioned peer, and the session advanced.
-    relay_subject = subjects.agent_relay("dev", "bilby", channel="dash-dev")
+    relay_subject = subjects.agent_relay("dev", "finch", channel="dash-dev")
     assert any(s == relay_subject for s, _ in bus.published)
     assert current().state is State.RELAY_NEEDED
 
@@ -257,7 +257,7 @@ async def test_watch_status_stops_rapid_alternating_relay_before_budget() -> Non
         async def post_event(self, task_id: str, event: str, *, actor: str, body: str) -> None:
             self.events.append((task_id, event, actor, body))
 
-    cfg = BusConfig(agent_id="nagatha", env="dev")
+    cfg = BusConfig(agent_id="heron", env="dev")
     bus = FakeBus(cfg)
     narrator = RecordingNarrator()
     kboard = RecordingKboard()
@@ -274,7 +274,7 @@ async def test_watch_status_stops_rapid_alternating_relay_before_budget() -> Non
     await orch.watch_worker_status(_session(State.WORKING))
     handler = bus.handlers[subjects.agent_status("dev", "t-1")]
 
-    for msg_id, sender in (("s1", "skippy"), ("s2", "bilby"), ("s3", "skippy")):
+    for msg_id, sender in (("s1", "wren"), ("s2", "finch"), ("s3", "wren")):
         await handler(
             Envelope.new(
                 msg_id=msg_id,
@@ -290,7 +290,7 @@ async def test_watch_status_stops_rapid_alternating_relay_before_budget() -> Non
         )
 
     relays = [(subject, env) for subject, env in bus.published if ".relay." in subject]
-    assert [env.to for _subject, env in relays] == ["bilby", "skippy"]
+    assert [env.to for _subject, env in relays] == ["finch", "wren"]
     assert governor.is_paused("t-1")
     assert narrator.calls == [
         (
@@ -301,14 +301,14 @@ async def test_watch_status_stops_rapid_alternating_relay_before_budget() -> Non
         )
     ]
     assert len(kboard.events) == 1
-    assert kboard.events[0][:3] == ("t-1", "comment", "nagatha")
+    assert kboard.events[0][:3] == ("t-1", "comment", "heron")
     assert kboard.events[0][3].startswith("PAUSED by relay-loop reliability control:")
     assert "over budget" not in kboard.events[0][3]
 
 
 async def test_watch_status_valid_handoff_resets_alternating_relay_history() -> None:
     """A valid callback-level handoff breaks an in-progress relay run."""
-    cfg = BusConfig(agent_id="nagatha", env="dev")
+    cfg = BusConfig(agent_id="heron", env="dev")
     bus = FakeBus(cfg)
     times = iter((0.0, 1.0, 2.0, 3.0, 4.0))
     governor = Governor(Budget(max_msgs=100, max_tokens=100_000))
@@ -333,20 +333,20 @@ async def test_watch_status_valid_handoff_resets_alternating_relay_history() -> 
             )
         )
 
-    await status("s1", "skippy")
-    await status("s2", "bilby")
-    await status("handoff", "skippy", "Over to you @bilby")
-    await status("s3", "skippy")
-    await status("s4", "bilby")
+    await status("s1", "wren")
+    await status("s2", "finch")
+    await status("handoff", "wren", "Over to you @finch")
+    await status("s3", "wren")
+    await status("s4", "finch")
 
     assert governor.is_paused("t-1") is False
     relays = [(subject, env) for subject, env in bus.published if ".relay." in subject]
-    assert [env.to for _subject, env in relays] == ["bilby", "skippy", "bilby", "skippy"]
+    assert [env.to for _subject, env in relays] == ["finch", "wren", "finch", "wren"]
 
-    await status("s5", "skippy")
+    await status("s5", "wren")
     assert governor.is_paused("t-1") is True
     relays = [(subject, env) for subject, env in bus.published if ".relay." in subject]
-    assert [env.to for _subject, env in relays] == ["bilby", "skippy", "bilby", "skippy"]
+    assert [env.to for _subject, env in relays] == ["finch", "wren", "finch", "wren"]
 
 
 async def test_watch_status_no_relay_when_handoff_present() -> None:
@@ -356,10 +356,10 @@ async def test_watch_status_no_relay_when_handoff_present() -> None:
     status = Envelope.new(
         msg_id="s1",
         ts="t",
-        sender="skippy",
+        sender="wren",
         kind="status",
         task_id="t-1",
-        payload={"text": "over to you @bilby"},
+        payload={"text": "over to you @finch"},
     )
     await handler(status)
     assert bus.published == []
@@ -379,7 +379,7 @@ async def test_watch_status_rejects_foreign_done_before_observer() -> None:
         done_envelope(
             msg_id="s1",
             ts="t",
-            sender="skippy",
+            sender="wren",
             task_id="OTHER",
             outcome="completed",
         )
@@ -403,7 +403,7 @@ async def test_watch_status_rejects_foreign_progress_before_all_mutation() -> No
         Envelope.new(
             msg_id="foreign-progress",
             ts="t",
-            sender="skippy",
+            sender="wren",
             kind="status",
             task_id="OTHER",
             payload={"text": "I finished my part."},
@@ -447,7 +447,7 @@ async def test_watch_status_payload_only_done_from_worker_advances() -> None:
         Envelope.new(
             msg_id="payload-only-done",
             ts="t",
-            sender="skippy",
+            sender="wren",
             kind="done",
             payload={"task_id": "t-1", "outcome": "completed"},
         )
@@ -488,8 +488,8 @@ async def test_watch_status_rejects_slug_collision_done_sender() -> None:
     session = CoordinationSession(
         task_id="t-1",
         channel="dash-dev",
-        manager="nagatha",
-        workers=("foo bar", "bilby"),
+        manager="heron",
+        workers=("foo bar", "finch"),
         state=State.WORKING,
     )
     _, current = await orch.watch_worker_status(session)
@@ -520,7 +520,7 @@ async def test_watch_status_observer_failure_still_fires_one_relay() -> None:
         Envelope.new(
             msg_id="s1",
             ts="t",
-            sender="skippy",
+            sender="wren",
             kind="status",
             task_id="t-1",
             payload={"text": "I finished my part."},
@@ -528,7 +528,7 @@ async def test_watch_status_observer_failure_still_fires_one_relay() -> None:
     )
 
     relays = [subject for subject, _env in bus.published if ".relay." in subject]
-    assert relays == [subjects.agent_relay("dev", "bilby", channel="dash-dev")]
+    assert relays == [subjects.agent_relay("dev", "finch", channel="dash-dev")]
     assert current().state is State.RELAY_NEEDED
 
 
@@ -544,7 +544,7 @@ async def test_watch_status_observer_failure_still_advances_done() -> None:
         done_envelope(
             msg_id="d1",
             ts="t",
-            sender="skippy",
+            sender="wren",
             task_id="t-1",
             outcome="completed",
         )
@@ -562,7 +562,7 @@ async def test_watch_status_done_sentinel_advances_to_done() -> None:
     _, current = await orch.watch_worker_status(_session(State.WORKING))
     handler = bus.handlers[subjects.agent_status("dev", "t-1")]
     await handler(
-        done_envelope(msg_id="d1", ts="t", sender="skippy", task_id="t-1", outcome="completed")
+        done_envelope(msg_id="d1", ts="t", sender="wren", task_id="t-1", outcome="completed")
     )
     assert current().state is State.DONE
     assert current().outcome == "completed"
@@ -571,7 +571,7 @@ async def test_watch_status_done_sentinel_advances_to_done() -> None:
 
 async def test_arbitrate_bad_request_is_dropped_no_reply() -> None:
     orch, bus = _orchestrator()
-    await orch.serve_arbitration("topic", ("skippy", "bilby"))
+    await orch.serve_arbitration("topic", ("wren", "finch"))
     handler = bus.raw_handlers[subjects.agent_arbitrate("dev", "topic")]
     msg = FakeMsg(data=b"not json", reply="_INBOX.reply")
     await handler(msg)
@@ -685,19 +685,19 @@ async def test_offline_decisions_drive_wake_redispatch_and_blocked_event() -> No
 
     async with KboardClient(client=httpx.AsyncClient(transport=httpx.MockTransport(handle))) as kb:
         await orch.apply_offline_decision(
-            session, OfflineDecision("t-1", "bilby", Escalation.WAKE, "silent"), kb
+            session, OfflineDecision("t-1", "finch", Escalation.WAKE, "silent"), kb
         )
         await orch.apply_offline_decision(
-            session, OfflineDecision("t-1", "bilby", Escalation.REDISPATCH, "still silent"), kb
+            session, OfflineDecision("t-1", "finch", Escalation.REDISPATCH, "still silent"), kb
         )
         await orch.apply_offline_decision(
-            session, OfflineDecision("t-1", "bilby", Escalation.BLOCKED, "exhausted"), kb
+            session, OfflineDecision("t-1", "finch", Escalation.BLOCKED, "exhausted"), kb
         )
 
     subjects_hit = [s for s, _ in bus.published]
     # Wake and dispatch are both per-channel (#117) — same session, same slice.
-    assert subjects.agent_wake("dev", "bilby", channel="dash-dev") in subjects_hit
-    assert subjects.agent_dispatch("dev", "bilby", channel="dash-dev") in subjects_hit
+    assert subjects.agent_wake("dev", "finch", channel="dash-dev") in subjects_hit
+    assert subjects.agent_dispatch("dev", "finch", channel="dash-dev") in subjects_hit
     # A redispatch carries a FRESH envelope id by design (C5: it is meant to run
     # again; the subscriber's Envelope.id dedup does not collapse it).
     ids = [e.id for _, e in bus.published]
@@ -713,7 +713,7 @@ async def test_offline_decisions_drive_wake_redispatch_and_blocked_event() -> No
     events = [c for c in calls if "/api/tasks/t-1/events" in c["url"]]
     assert len(events) == 1
     assert "BLOCKED" in str(events[0]["body"])
-    assert "bilby" in str(events[0]["body"])
+    assert "finch" in str(events[0]["body"])
     # Ordering: the durable status flip (PATCH) commits STRICTLY BEFORE the visible
     # comment (events POST) — same "durable write first" contract persist_transition
     # holds. Assert on positions in the single call timeline, not just presence.
@@ -760,7 +760,7 @@ async def test_blocked_status_flip_failure_still_posts_comment() -> None:
         ) as kb:
             # Must NOT raise — the flip is best-effort, the comment is guaranteed.
             await orch.apply_offline_decision(
-                session, OfflineDecision("t-1", "bilby", Escalation.BLOCKED, "exhausted"), kb
+                session, OfflineDecision("t-1", "finch", Escalation.BLOCKED, "exhausted"), kb
             )
     finally:
         logger.remove(sink_id)
@@ -815,7 +815,7 @@ async def test_blocked_escalation_preserves_done_without_comment_or_success_log(
             client=httpx.AsyncClient(transport=httpx.MockTransport(handle))
         ) as kb:
             await orch.apply_offline_decision(
-                session, OfflineDecision("t-1", "bilby", Escalation.BLOCKED, "exhausted"), kb
+                session, OfflineDecision("t-1", "finch", Escalation.BLOCKED, "exhausted"), kb
             )
     finally:
         logger.remove(sink_id)
@@ -856,7 +856,7 @@ async def test_blocked_comment_failure_after_status_write_logs_loudly() -> None:
             client=httpx.AsyncClient(transport=httpx.MockTransport(handle))
         ) as kb:
             await orch.apply_offline_decision(
-                session, OfflineDecision("t-1", "bilby", Escalation.BLOCKED, "exhausted"), kb
+                session, OfflineDecision("t-1", "finch", Escalation.BLOCKED, "exhausted"), kb
             )
     finally:
         logger.remove(sink_id)
@@ -894,7 +894,7 @@ async def test_blocked_status_and_comment_failures_claim_neither_write_succeeded
         ) as kb:
             await orch.apply_offline_decision(
                 _session(State.WORKING),
-                OfflineDecision("t-1", "bilby", Escalation.BLOCKED, "exhausted"),
+                OfflineDecision("t-1", "finch", Escalation.BLOCKED, "exhausted"),
                 kb,
             )
     finally:
@@ -968,8 +968,8 @@ async def test_status_handler_persists_the_post_increment_count() -> None:
     session = CoordinationSession(
         task_id="t-1",
         channel="dash-dev",
-        manager="nagatha",
-        workers=("skippy", "bilby"),
+        manager="heron",
+        workers=("wren", "finch"),
         state=State.WORKING,
     )
     sub, accessor = await orch.watch_worker_status(session)
@@ -977,7 +977,7 @@ async def test_status_handler_persists_the_post_increment_count() -> None:
     handler = bus.handlers[subject]
 
     # A status with no handoff mention triggers a relay → apply → note_message.
-    await handler(_status_env(sender="skippy", text="done, no mention of anyone"))
+    await handler(_status_env(sender="wren", text="done, no mention of anyone"))
 
     assert store.persisted, "the counting handler must have persisted"
     # The persisted snapshot observed the incremented count (>= 1), never msgs=0.
@@ -1000,8 +1000,8 @@ async def test_a_failed_second_status_subscribe_does_not_leak_the_first() -> Non
     session = CoordinationSession(
         task_id="t-1",
         channel="dash-dev",
-        manager="nagatha",
-        workers=("skippy", "bilby"),
+        manager="heron",
+        workers=("wren", "finch"),
         state=State.WORKING,
     )
     bus.fail_subscribe_after = 1  # the bare form lands, the scoped one fails
@@ -1029,15 +1029,15 @@ async def test_status_watch_task_does_not_double_persist() -> None:
     session = CoordinationSession(
         task_id="t-1",
         channel="dash-dev",
-        manager="nagatha",
-        workers=("skippy", "bilby"),
+        manager="heron",
+        workers=("wren", "finch"),
         state=State.WORKING,
     )
     await orch.watch_worker_status(session)
     handler = bus.handlers[subjects.agent_status("dev", "t-1")]
 
-    await handler(_status_env(sender="skippy", text="no mention one"))
-    await handler(_status_env(sender="bilby", text="no mention two"))
+    await handler(_status_env(sender="wren", text="no mention one"))
+    await handler(_status_env(sender="finch", text="no mention two"))
 
     counts = [snap["msgs"] for snap in store.persisted]
     assert counts == [1, 2]  # one persist per counted message; monotonic, no double-persist

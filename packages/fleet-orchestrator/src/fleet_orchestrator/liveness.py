@@ -62,7 +62,7 @@ class LivenessTracker:
         # dedup on the (agent, version) pairings that make up a skew means a value
         # an agent has ALREADY been warned at is silent on its next flap back.
         # A SET (not a last-value scalar) is required: an emitter oscillating
-        # between TWO distinct skewing values (skippy 6↔5 vs an anchored bilby 7 —
+        # between TWO distinct skewing values (wren 6↔5 vs an anchored finch 7 —
         # BOTH skew) would, with a last-value map, look "newly divergent" on every
         # flip (the map was just overwritten to the other value), re-warning each
         # beat. Accumulating every warned version per agent bounds such a flap to
@@ -156,7 +156,7 @@ class LivenessTracker:
           on the per-agent SET of versions each agent has already been warned at
           in a skew — an agent is warned once per DISTINCT version it holds in a
           skew. So an emitter flapping between two distinct skewing values
-          (skippy 6↔5 while bilby is anchored at 7 — BOTH 6 and 5 skew vs 7)
+          (wren 6↔5 while finch is anchored at 7 — BOTH 6 and 5 skew vs 7)
           warns at most twice total (once per value), never once per flap-cycle.
           A genuinely new third distinct skewing value still warns once.
         - **Non-stale only** (P2-6): a dead agent's ghost version is excluded via

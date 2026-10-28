@@ -281,8 +281,8 @@ if git ls-tree -r origin/main --name-only 2>/dev/null | grep -q 'fleet_nats/bus.
     # shellcheck disable=SC2016
     check "P0 PR #2 merged" bash -c \
         'test "$(gh pr view 2 --json state -q .state 2>/dev/null)" = "MERGED"'
-    check "P0 fleet-nats on main, no bilby_a2a" bash -c \
-        'test -f packages/fleet-nats/src/fleet_nats/bus.py && ! git ls-tree -r origin/main --name-only 2>/dev/null | grep -q bilby_a2a'
+    check "P0 fleet-nats on main, no finch_a2a" bash -c \
+        'test -f packages/fleet-nats/src/fleet_nats/bus.py && ! git ls-tree -r origin/main --name-only 2>/dev/null | grep -q finch_a2a'
 else
     echo "SKIP  P0 foundation on main (not merged yet — pre-merge)"
     skip=$((skip + 2))
