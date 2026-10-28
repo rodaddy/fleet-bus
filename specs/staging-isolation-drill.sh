@@ -55,7 +55,7 @@
 #   FLEET_DRILL_PYTHON          python that has fleet-nats + fleet-orchestrator +
 #                               fleet-subscriber installed (default:
 #                               /opt/fleet-bus/.venv/bin/python)
-#   FLEET_DRILL_WORKER          worker agent id the dummy answers as (default: skippy)
+#   FLEET_DRILL_WORKER          worker agent id the dummy answers as (default: wren)
 #   FLEET_DRILL_TIMEOUT         seconds to wait for the hub to reach DONE (default: 60)
 set -u
 
@@ -64,7 +64,7 @@ STAGING_MONITOR="${FLEET_STAGING_MONITOR_URL:-}"
 PROD_MONITOR="${FLEET_PROD_MONITOR_URL:-http://192.0.2.74:8223}"
 DRILL_ID="${FLEET_DRILL_ID:-staging-drill}"
 PYTHON_BIN="${FLEET_DRILL_PYTHON:-/opt/fleet-bus/.venv/bin/python}"
-WORKER_ID="${FLEET_DRILL_WORKER:-skippy}"
+WORKER_ID="${FLEET_DRILL_WORKER:-wren}"
 DRILL_TIMEOUT="${FLEET_DRILL_TIMEOUT:-60}"
 
 # Connection names the exercise puts on the bus, all keyed by the drill id so the
@@ -212,7 +212,7 @@ sleep 4
 # (the hub also self-bounds its own --once DONE wait).
 echo "staging-isolation-drill: driving one --once session (up to ${DRILL_TIMEOUT}s) ..."
 FLEET_NATS_URL="$STAGING_URL" FLEET_ENV=staging \
-    FLEET_AGENT_ID=nagatha FLEET_MANAGER_ID=nagatha \
+    FLEET_AGENT_ID=heron FLEET_MANAGER_ID=heron \
     FLEET_WORKERS="$WORKER_ID" FLEET_NATS_NAME="$HUB_NAME" \
     timeout "$DRILL_TIMEOUT" \
     "$PYTHON_BIN" -m fleet_orchestrator --once --dry-run \

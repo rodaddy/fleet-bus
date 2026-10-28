@@ -138,10 +138,9 @@ the chat channel map are configuration you supply.
 - The deploy scripts and `.github/workflows/deploy*.yml` are the author's own
   hub deploy: a single hub host reached over SSH from a self-hosted runner.
   Read them as a worked example, not as something to run unchanged.
-- Docs and tests use the example agent ids `wren`, `finch` and `heron`. The
-  production NATS config in `deploy/nats/` and its provisioning script keep
-  the author's own agent ids, because the deploy workflow ships that file to a
-  live hub.
+- Docs, tests and the NATS configs in `deploy/nats/` use the example agent
+  ids `wren`, `finch` and `heron`. Replace them with your own agent ids before
+  deploying.
 - "Dash" in the docs and tests is a neutral stand-in for a sibling TypeScript
   platform that shares the same subject convention.
 - Hostnames under `example.internal` and addresses in `192.0.2.0/24` are

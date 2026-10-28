@@ -70,9 +70,9 @@ SECRET_RE='^[A-Za-z][A-Za-z0-9+/=]{31,127}$'
 # to match your own vault naming.
 VAULT_ITEM_PREFIX="${FLEET_NATS_VAULT_ITEM_PREFIX:-fleet-nats-}"
 PRINCIPALS=(
-    "FLEET_NATS_PW_NAGATHA=${VAULT_ITEM_PREFIX}nagatha=nagatha"
-    "FLEET_NATS_PW_SKIPPY=${VAULT_ITEM_PREFIX}skippy=skippy"
-    "FLEET_NATS_PW_BILBY=${VAULT_ITEM_PREFIX}bilby=bilby"
+    "FLEET_NATS_PW_HERON=${VAULT_ITEM_PREFIX}heron=heron"
+    "FLEET_NATS_PW_WREN=${VAULT_ITEM_PREFIX}wren=wren"
+    "FLEET_NATS_PW_FINCH=${VAULT_ITEM_PREFIX}finch=finch"
     "FLEET_NATS_PW_HUB_CONTROL=${VAULT_ITEM_PREFIX}hub-control=fleet-hub-control"
     "FLEET_NATS_PW_OPEN_BRAIN=${VAULT_ITEM_PREFIX}open-brain=open-brain"
     "FLEET_NATS_PW_KBOARD=${VAULT_ITEM_PREFIX}kboard=fleet-kboard"
