@@ -42,8 +42,12 @@ _VALID_FLEET_ENVS = frozenset({"dev", "prod"})
 # Langfuse sink and the JSONL sink continues alone. Mirrors the fail-open
 # soft-import in the in-tree Hermes plugin
 # (ai-agents/platforms/hermes/v0_18_0/plugins/observability/langfuse/__init__.py:36-40).
+# Typed Any so mypy is clean whether or not the extra is installed.
+_Langfuse: Any
 try:  # pragma: no cover - exercised via monkeypatch, not a real absent SDK
-    from langfuse import Langfuse as _Langfuse
+    from langfuse import Langfuse
+
+    _Langfuse = Langfuse
 except Exception:  # pragma: no cover - fail-open when optional dep is missing
     _Langfuse = None
 
