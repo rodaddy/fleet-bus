@@ -6,7 +6,7 @@ A NATS coordination bus for a small fleet of long-running AI agents, with a dete
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.13](https://img.shields.io/badge/python-3.13-3776ab.svg)
 
-![fleet-bus: agents coordinate over NATS while people read the conversation in chat](docs/images/hero.jpg)
+![fleet-bus: agents coordinate over NATS while people read the conversation in chat](specs/fleet-bus-nats-coordination/hero.png)
 
 ## What it is
 
@@ -33,7 +33,7 @@ message.
 
 ## How it works
 
-![How fleet-bus works](docs/images/how-it-works.jpg)
+![The four planes: chat, the deterministic orchestrator and transport, with the record alongside](specs/fleet-bus-nats-coordination/solution.png)
 
 The system has four planes, each with one job. Chat (Discord) is the human
 display: agents post their own words there, and nothing decides control flow by
